@@ -1,8 +1,7 @@
-This repo has two layers. `skills/` holds Claude Code **skills** (capabilities that
-install onto the agent, via the plugin). `ralph/` holds the standalone **RALPH loop** —
-host-level bash that drives the agent from *outside* a session. `ralph/` is NOT a skill
-bucket: its scripts are not skills, are not listed in `README.md`'s skill reference, and
-have no entry in `.claude-plugin/plugin.json`. See [ralph/README.md](./ralph/README.md).
+This repo holds Claude Code **skills**. The autonomous RALPH loop is a separate, host-level
+layer that drives the agent from *outside* a session — it lives in its own repo,
+[taigamura/ralph-claude-code](https://github.com/taigamura/ralph-claude-code) (my detached
+copy of [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code)), not here.
 
 Skills are organized into bucket folders under `skills/`:
 
