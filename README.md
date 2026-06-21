@@ -23,7 +23,7 @@ npx skills@latest add taigamura/agent-harness
 
 4. Bam - you're ready to go.
 
-5. (Optional) For the autonomous **RALPH loop**, use [taigamura/ralph-claude-code](https://github.com/taigamura/ralph-claude-code) — my detached copy of [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code).
+5. (Optional) For the autonomous **RALPH loop**, see [`ralph/`](./ralph/) — [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code) vendored as a git subtree.
 
 ## Why These Skills Exist
 

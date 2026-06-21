@@ -1,7 +1,10 @@
-This repo holds Claude Code **skills**. The autonomous RALPH loop is a separate, host-level
-layer that drives the agent from *outside* a session — it lives in its own repo,
-[taigamura/ralph-claude-code](https://github.com/taigamura/ralph-claude-code) (my detached
-copy of [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code)), not here.
+This repo has two layers. `skills/` holds Claude Code **skills** (capabilities installed onto
+the agent via the plugin). `ralph/` holds the autonomous **RALPH loop** —
+[frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code) vendored as a git
+**subtree** (host-level bash that drives the agent from *outside* a session). `ralph/` is NOT a
+skill bucket: its files are not skills, are not listed in `README.md`'s skill reference, and have
+no entry in `.claude-plugin/plugin.json`. Pull upstream updates with:
+`git subtree pull --prefix=ralph ralph-upstream main --squash`.
 
 Skills are organized into bucket folders under `skills/`:
 
