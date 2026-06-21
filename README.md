@@ -1,33 +1,17 @@
-<p>
-  <a href="https://www.aihero.dev/s/skills-newsletter">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skills-repo-dark_2x.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skill-repo-light_2x.png">
-      <img alt="Skills" src="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skill-repo-light_2x.png" width="369">
-    </picture>
-  </a>
-</p>
+# agent-harness
 
-# Skills For Real Engineers
+My agentic-engineering harness: a set of Claude Code skills plus a standalone **RALPH loop** for shipping real software with coding agents — not vibe coding.
 
-[![skills.sh](https://skills.sh/b/mattpocock/skills)](https://skills.sh/mattpocock/skills)
+> **Attribution.** This project began as a fork of [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) and is diverging into my own workflow. The `engineering/`, `productivity/`, and `misc/` skills are Matt Pocock's excellent work; the `ralph/` loop and project-specific pieces are mine. See [LICENSE](./LICENSE).
 
-My agent skills that I use every day to do real engineering - not vibe coding.
-
-Developing real applications is hard. Approaches like GSD, BMAD, and Spec-Kit try to help by owning the process. But while doing so, they take away your control and make bugs in the process hard to resolve.
-
-These skills are designed to be small, easy to adapt, and composable. They work with any model. They're based on decades of engineering experience. Hack around with them. Make them your own. Enjoy.
-
-If you want to keep up with changes to these skills, and any new ones I create, you can join ~60,000 other devs on my newsletter:
-
-[Sign Up To The Newsletter](https://www.aihero.dev/s/skills-newsletter)
+Developing real applications is hard. Approaches like GSD, BMAD, and Spec-Kit try to help by owning the process — but they take away your control and make bugs in the process hard to resolve. These skills are deliberately small, easy to adapt, and composable. They work with any model.
 
 ## Quickstart (30-second setup)
 
 1. Run the skills.sh installer:
 
 ```bash
-npx skills@latest add mattpocock/skills
+npx skills@latest add taigamura/agent-harness
 ```
 
 2. Pick the skills you want, and which coding agents you want to install them on. **Make sure you select `/setup-matt-pocock-skills`**.
@@ -38,6 +22,8 @@ npx skills@latest add mattpocock/skills
    - Ask you where you want to save any docs we create
 
 4. Bam - you're ready to go.
+
+5. (Optional) Add the autonomous **RALPH loop** to a project — see [`ralph/`](./ralph/).
 
 ## Why These Skills Exist
 

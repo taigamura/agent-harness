@@ -1,11 +1,11 @@
 {
-  "name": "mattpocock-skills",
+  "name": "agent-harness",
   "version": "1.0.1",
   "private": true,
-  "description": "Matt Pocock's agent skills for real engineering",
+  "description": "My agentic-engineering harness — Claude Code skills + the RALPH loop. Forked from mattpocock/skills.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mattpocock/skills"
+    "url": "https://github.com/taigamura/agent-harness"
   },
   "license": "MIT",
   "scripts": {
