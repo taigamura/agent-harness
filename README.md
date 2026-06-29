@@ -6,24 +6,81 @@ My agentic-engineering harness: a set of Claude Code skills plus a standalone **
 
 Developing real applications is hard. Approaches like GSD, BMAD, and Spec-Kit try to help by owning the process — but they take away your control and make bugs in the process hard to resolve. These skills are deliberately small, easy to adapt, and composable. They work with any model.
 
-## Quickstart (30-second setup)
+## Setup
 
-1. Run the skills.sh installer:
+### New machine (run once)
 
 ```bash
-npx skills@latest add taigamura/agent-harness
+git clone https://github.com/taigamura/agent-harness.git
+cd agent-harness
+./setup-machine.sh
 ```
 
-2. Pick the skills you want, and which coding agents you want to install them on. **Make sure you select `/setup-matt-pocock-skills`**.
+This installs the Claude Code skills and the `ralph` CLI in one step.
 
-3. Run `/setup-matt-pocock-skills` in your agent. It will:
-   - Ask you which issue tracker you want to use (GitHub, Linear, or local files)
-   - Ask you what labels you apply to tickets when you triage them (`/triage` uses labels)
-   - Ask you where you want to save any docs we create
+### New project (run once per repo)
 
-4. Bam - you're ready to go.
+```bash
+ralph-enable
+```
 
-5. (Optional) For the autonomous **RALPH loop**, see [`ralph/`](./ralph/) — [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code) vendored as a git subtree.
+Scaffolds `.ralph/PROMPT.md`, `fix_plan.md`, `AGENT.md`, and `.ralphrc` in your project. That's all you need to start.
+
+> **Optional — `/setup-matt-pocock-skills`**: run this if your project is *not* hosted on GitHub (e.g. GitLab, local markdown issues), or if you want to use custom triage label names instead of the defaults (`needs-triage`, `ready-for-agent`, etc.). For a standard GitHub repo with default labels you can skip it entirely — `/to-prd` and `/to-issues` will infer the issue tracker from `git remote` automatically.
+
+## Workflow
+
+This harness implements Matt Pocock's **HITL → AFK pipeline**: planning is human-in-the-loop; implementation runs away-from-keyboard. The two halves hand off through a task list.
+
+### Stage 0 — Setup (once)
+
+```bash
+./setup-machine.sh   # once per machine
+ralph-enable         # once per project repo
+```
+
+### Stage 1–3 — Research & Prototype (optional, HITL)
+
+Explore unfamiliar parts of the codebase with a research subagent or a throwaway prototype. Use these stages to surface unknowns before committing to a design — not to produce production code.
+
+### Stage 4 — PRD (HITL)
+
+```
+/grill-me   →   /to-prd
+```
+
+`/grill-me` interviews you one question at a time until the design is fully resolved. `/to-prd` synthesizes the conversation into a PRD and publishes it to GitHub Issues, auto-labelled `ready-for-agent`. Don't double-check the output — the grilling already produced the shared understanding.
+
+### Stage 5 — Kanban (HITL)
+
+```
+/to-issues   →   /to-fix-plan
+```
+
+`/to-issues` breaks the PRD into vertical-slice tickets (each a thin cut through every layer — schema, API, UI, tests — not a horizontal layer). `/to-fix-plan` materialises the `ready-for-agent` issues into `.ralph/fix_plan.md`, the task list the loop reads.
+
+> `/triage` is not part of this flow. `/to-prd` and `/to-issues` already apply the `ready-for-agent` label. Run `/triage` only for issues that arrive from outside this flow (human bug reports, external PRs) that start as `needs-triage`.
+
+### Stage 6 — Implementation (AFK)
+
+```bash
+ralph --dry-run   # simulate without API calls — verify the task list looks right
+ralph             # run the loop
+```
+
+The RALPH loop picks tasks from `.ralph/fix_plan.md`, runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
+
+### Stage 7 — Review (AFK)
+
+```
+/clear   →   code-review subagent
+```
+
+Clear context before reviewing so the agent reads the diff cold — not with the same context that produced the code. The review runs as a fresh subagent against the PRD's acceptance criteria.
+
+### Stage 8 — QA (HITL)
+
+A human executes the QA checklist against the running build. Only humans catch "technically passes tests but wrong UX" failures. New failures become tickets and feed back into Stage 5.
 
 ## Why These Skills Exist
 
@@ -139,7 +196,7 @@ Skills I use daily for code work.
 - **[grill-with-docs](./skills/engineering/grill-with-docs/SKILL.md)** — Grilling session that also builds your project's domain model, sharpening terminology and updating `CONTEXT.md` and ADRs inline.
 - **[triage](./skills/engineering/triage/SKILL.md)** — Move issues through a state machine of triage roles.
 - **[improve-codebase-architecture](./skills/engineering/improve-codebase-architecture/SKILL.md)** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
-- **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo for the engineering skills (issue tracker, triage labels, domain doc layout). Run once per repo before using the other engineering skills.
+- **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo for the engineering skills (issue tracker, triage labels, domain doc layout). Only needed if you're not on GitHub, using a non-default issue tracker, or want to override the default triage label names. Standard GitHub repos can skip this — the other skills infer the tracker from `git remote`.
 - **[to-issues](./skills/engineering/to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
 - **[to-prd](./skills/engineering/to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker. No interview — just synthesizes what you've already discussed.
 - **[prototype](./skills/engineering/prototype/SKILL.md)** — Build a throwaway prototype to flesh out a design — either a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
