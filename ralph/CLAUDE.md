@@ -25,7 +25,6 @@ Ralph for Claude Code — an autonomous AI development loop system enabling cont
 - **ralph_queue.sh** — `ralph-queue` command: batch processing and issue queue management (Issue #72). Builds a persistent queue at `.ralph/queue.json` of GitHub issues (reuses `ralph_import.sh`'s `gh` machinery: `resolve_github_issue_candidates`, `fetch_github_issue`, `format_issue_as_prd`) or local PRD specs. Subcommands: `add` (`--github-issues N,N` | filter flags | `--prd <file>`), `status [--json]`, `next`, `remove`, `clear`, `reorder`, `validate`, `process [--halt-on-failure]`, `resume`. The sequential processor stages `.ralph/` from each ready item (priority + dependency order), runs the loop via `RALPH_LOOP_CMD` (default `ralph_loop.sh`; overridable for tests), commits `Fix #N: <title>` per issue, skips failures (or halts), and writes `.ralph/logs/queue_processing.log`. Single branch, no concurrency. See [docs/QUEUE_MANAGEMENT.md](docs/QUEUE_MANAGEMENT.md)
 - **GitHub issue lifecycle** (Issue #73): when `ralph` is run with `--github-issue <ref>`, it tracks the issue across the loop via `lib/github_lifecycle.sh`. During development it can post progress comments every N loops (`--comment-progress`, `--comment-interval`); on graceful completion it runs a completion workflow — summary comment (`--close-summary`), PR creation linked with `Closes #N` (`--create-pr --link-issue`, optional `--draft-pr`), grouped follow-up issue from TODO/FIXME markers added during dev (`--create-followups --followup-label`), and issue close with optional labels (`--auto-close --add-label`). All steps are opt-in and degrade gracefully (a gh permission failure is logged and the loop continues). State lives in `.ralph/.github_lifecycle_state`. Uses the `gh` CLI exclusively (not raw REST/`GITHUB_TOKEN`)
 - **ralph_enable.sh** — interactive wizard enabling Ralph in existing projects (environment detection, task source selection, generates `.ralphrc`)
-- **ralph_enable_ci.sh** — non-interactive version for CI/automation; `--json` output mode; exit codes: 0 (success), 1 (error), 2 (already enabled)
 
 ### Library Components (lib/)
 
@@ -64,8 +63,6 @@ ralph-enable --from beads
 ralph-enable --from github --label "sprint-1"
 ralph-enable --from prd ./docs/requirements.md
 ralph-enable --force                      # Overwrite existing .ralph/
-
-ralph-enable-ci [--from github] [--project-type typescript] [--json]   # Non-interactive
 ```
 
 ### Running the Loop
@@ -344,7 +341,7 @@ project-name/
 ## Global Installation
 
 `./install.sh` installs:
-- **Commands** → `~/.local/bin/`: `ralph`, `ralph-monitor`, `ralph-setup`, `ralph-import`, `ralph-queue`, `ralph-migrate`, `ralph-enable`, `ralph-enable-ci`, `ralph-stats`
+- **Commands** → `~/.local/bin/`: `ralph`, `ralph-monitor`, `ralph-setup`, `ralph-import`, `ralph-queue`, `ralph-migrate`, `ralph-enable`
 - **Scripts + templates** → `~/.ralph/` (main scripts, `templates/`, `lib/`)
 
 **External dependencies**: Claude Code CLI (execution engine), tmux (integrated monitoring), git (projects must be repos), jq (JSON processing), standard Unix tools.

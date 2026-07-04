@@ -199,27 +199,6 @@ RALPH_HOME="$HOME/.ralph"
 exec "$RALPH_HOME/ralph_enable.sh" "$@"
 EOF
 
-    # Create ralph-enable-ci command (non-interactive)
-    cat > "$INSTALL_DIR/ralph-enable-ci" << 'EOF'
-#!/bin/bash
-# Ralph Enable CI - Non-Interactive Version for Automation
-# Adds Ralph configuration with sensible defaults
-
-RALPH_HOME="$HOME/.ralph"
-
-exec "$RALPH_HOME/ralph_enable_ci.sh" "$@"
-EOF
-
-    # Create ralph-stats command (Issue #21)
-    cat > "$INSTALL_DIR/ralph-stats" << 'EOF'
-#!/bin/bash
-# Ralph Stats - Metrics analytics for Ralph loop execution
-
-RALPH_HOME="$HOME/.ralph"
-
-exec "$RALPH_HOME/ralph-stats.sh" "$@"
-EOF
-
     # Create ralph-queue command (Issue #72)
     cat > "$INSTALL_DIR/ralph-queue" << 'EOF'
 #!/bin/bash
@@ -242,12 +221,8 @@ EOF
     # Copy migration script to Ralph home
     cp "$SCRIPT_DIR/migrate_to_ralph_folder.sh" "$RALPH_HOME/"
 
-    # Copy enable scripts to Ralph home
+    # Copy enable script to Ralph home
     cp "$SCRIPT_DIR/ralph_enable.sh" "$RALPH_HOME/"
-    cp "$SCRIPT_DIR/ralph_enable_ci.sh" "$RALPH_HOME/"
-
-    # Copy stats script to Ralph home (Issue #21)
-    cp "$SCRIPT_DIR/ralph-stats.sh" "$RALPH_HOME/"
 
     # Make all commands executable
     chmod +x "$INSTALL_DIR/ralph"
@@ -256,16 +231,12 @@ EOF
     chmod +x "$INSTALL_DIR/ralph-import"
     chmod +x "$INSTALL_DIR/ralph-migrate"
     chmod +x "$INSTALL_DIR/ralph-enable"
-    chmod +x "$INSTALL_DIR/ralph-enable-ci"
-    chmod +x "$INSTALL_DIR/ralph-stats"
     chmod +x "$INSTALL_DIR/ralph-queue"
     chmod +x "$RALPH_HOME/ralph_monitor.sh"
     chmod +x "$RALPH_HOME/ralph_import.sh"
     chmod +x "$RALPH_HOME/ralph_queue.sh"
     chmod +x "$RALPH_HOME/migrate_to_ralph_folder.sh"
     chmod +x "$RALPH_HOME/ralph_enable.sh"
-    chmod +x "$RALPH_HOME/ralph_enable_ci.sh"
-    chmod +x "$RALPH_HOME/ralph-stats.sh"
     chmod +x "$RALPH_HOME/lib/"*.sh
 
     log "SUCCESS" "Ralph scripts installed to $INSTALL_DIR"
@@ -339,7 +310,6 @@ main() {
     echo "  ralph --help            # Show Ralph options"
     echo "  ralph-setup my-project  # Create new Ralph project"
     echo "  ralph-enable            # Enable Ralph in existing project (interactive)"
-    echo "  ralph-enable-ci         # Enable Ralph in existing project (non-interactive)"
     echo "  ralph-import prd.md     # Convert PRD to Ralph project"
     echo "  ralph-migrate           # Migrate existing project to .ralph/ structure"
     echo "  ralph-monitor           # Manual monitoring dashboard"
@@ -363,7 +333,7 @@ case "${1:-install}" in
         ;;
     uninstall)
         log "INFO" "Uninstalling Ralph for Claude Code..."
-        rm -f "$INSTALL_DIR/ralph" "$INSTALL_DIR/ralph-monitor" "$INSTALL_DIR/ralph-setup" "$INSTALL_DIR/ralph-import" "$INSTALL_DIR/ralph-migrate" "$INSTALL_DIR/ralph-enable" "$INSTALL_DIR/ralph-enable-ci" "$INSTALL_DIR/ralph-stats" "$INSTALL_DIR/ralph-queue"
+        rm -f "$INSTALL_DIR/ralph" "$INSTALL_DIR/ralph-monitor" "$INSTALL_DIR/ralph-setup" "$INSTALL_DIR/ralph-import" "$INSTALL_DIR/ralph-migrate" "$INSTALL_DIR/ralph-enable" "$INSTALL_DIR/ralph-queue"
         rm -rf "$RALPH_HOME"
         log "SUCCESS" "Ralph for Claude Code uninstalled"
         ;;
