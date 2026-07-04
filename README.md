@@ -21,12 +21,19 @@ This installs the Claude Code skills and the `ralph` CLI in one step.
 ### New project (run once per repo)
 
 ```bash
-ralph-enable
+cd your-project
+harness-init
 ```
 
-Scaffolds `.ralph/PROMPT.md`, `fix_plan.md`, `AGENT.md`, and `.ralphrc` in your project. That's all you need to start.
+One command, two phases:
 
-> **Optional — `/setup-matt-pocock-skills`**: run this if your project is *not* hosted on GitHub (e.g. GitLab, local markdown issues), or if you want to use custom triage label names instead of the defaults (`needs-triage`, `ready-for-agent`, etc.). For a standard GitHub repo with default labels you can skip it entirely — `/to-prd` and `/to-issues` will infer the issue tracker from `git remote` automatically.
+1. **`ralph-enable`** — scaffolds `.ralph/PROMPT.md`, `fix_plan.md`, `AGENT.md`, and `.ralphrc` in your project.
+2. **`/setup-matt-pocock-skills`** — auto-launches Claude Code and walks you through the three per-repo conventions the engineering skills (`/to-prd`, `/to-issues`, `/triage`, `/qa`) read from:
+   - **Issue tracker** — GitHub, GitLab, local markdown, or an "other" workflow you describe
+   - **Triage label vocabulary** — the exact label strings `/triage` applies (defaults to `needs-triage`, `ready-for-agent`, etc., but map to your existing labels if you already have some)
+   - **Domain doc layout** — single-context (one `CONTEXT.md` at the root) or multi-context (a `CONTEXT-MAP.md` pointing at per-package contexts, typical for monorepos)
+
+Flags pass through to `ralph-enable`; add `--skip-skill` if you only want phase 1. Re-run only when you want to switch trackers or change conventions.
 
 ## Workflow
 
@@ -36,7 +43,7 @@ This harness implements Matt Pocock's **HITL → AFK pipeline**: planning is hum
 
 ```bash
 ./setup-machine.sh   # once per machine
-ralph-enable         # once per project repo
+harness-init         # once per project repo (scaffolds .ralph/ + runs /setup-matt-pocock-skills)
 ```
 
 ### Stage 1–3 — Research & Prototype (optional, HITL)
@@ -218,7 +225,7 @@ Skills I use daily for code work.
 - **[grill-with-docs](./skills/engineering/grill-with-docs/SKILL.md)** — Grilling session that also builds your project's domain model, sharpening terminology and updating `CONTEXT.md` and ADRs inline.
 - **[triage](./skills/engineering/triage/SKILL.md)** — Move issues through a state machine of triage roles.
 - **[improve-codebase-architecture](./skills/engineering/improve-codebase-architecture/SKILL.md)** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
-- **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo for the engineering skills (issue tracker, triage labels, domain doc layout). Only needed if you're not on GitHub, using a non-default issue tracker, or want to override the default triage label names. Standard GitHub repos can skip this — the other skills infer the tracker from `git remote`.
+- **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo's issue-tracker choice, triage label vocabulary, and domain doc layout, so `/to-prd`, `/to-issues`, `/triage`, and `/qa` know what conventions to follow here. Run once per repo before first use of the engineering flow.
 - **[to-issues](./skills/engineering/to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
 - **[to-prd](./skills/engineering/to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker. No interview — just synthesizes what you've already discussed.
 - **[prototype](./skills/engineering/prototype/SKILL.md)** — Build a throwaway prototype to flesh out a design — either a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
