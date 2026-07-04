@@ -10,7 +10,7 @@ Reachable only when you type them (`disable-model-invocation: true`).
 - **[grill-with-docs](./grill-with-docs/SKILL.md)** — Grilling session that also builds your project's domain model, sharpening terminology and updating `CONTEXT.md` and ADRs inline.
 - **[triage](./triage/SKILL.md)** — Move issues through a state machine of triage roles.
 - **[improve-codebase-architecture](./improve-codebase-architecture/SKILL.md)** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
-- **[setup-matt-pocock-skills](./setup-matt-pocock-skills/SKILL.md)** — Configure this repo for the engineering skills (issue tracker, triage labels, domain doc layout). Run once per repo.
+- **[setup-matt-pocock-skills](./setup-matt-pocock-skills/SKILL.md)** — Configure this repo's issue-tracker choice, triage label vocabulary, and domain doc layout, so the engineering skills that depend on these conventions apply the right ones. Run once per repo.
 - **[to-issues](./to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
 - **[to-prd](./to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker.
 - **[to-fix-plan](./to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). The bridge from HITL planning to the ralph loop.
