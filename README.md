@@ -72,6 +72,26 @@ ralph             # run the loop
 
 The RALPH loop picks tasks from `.ralph/fix_plan.md`, runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
 
+#### Interrupting and resuming the loop on another machine
+
+If you kill the tmux session mid-loop (e.g. you run out of tokens and want to continue later on a different PC):
+
+1. **Commit any partial work** — run `git status` on the project repo. Commits Claude made are already in history; any uncommitted edits from the in-flight iteration should be staged and committed manually.
+2. **Push** — `git push` the project repo as normal.
+
+On the new machine, `git pull` and run `ralph` again. The loop restarts cleanly: it re-reads `fix_plan.md` to know where you left off, starts a fresh Claude session (no session continuity needed — the prompt + task list carry the context), and resets the hourly call counter.
+
+**What carries over vs. what doesn't:**
+
+| Transfers (`git push/pull`) | Stays behind (gitignored) |
+|---|---|
+| `.ralph/PROMPT.md` | `.ralph/.call_count` |
+| `.ralph/fix_plan.md` | `.ralph/.claude_session_id` |
+| `.ralph/AGENT.md` | `.ralph/.circuit_breaker_state` |
+| All source code commits | `.ralph/status.json`, logs |
+
+The only thing to check manually is `fix_plan.md` — make sure checked items reflect the actual committed state before you restart.
+
 ### Stage 7 — Review (AFK)
 
 ```
