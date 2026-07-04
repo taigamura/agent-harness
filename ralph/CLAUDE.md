@@ -199,7 +199,7 @@ ENABLE_BACKUP=false                   # Git backup branches; or --backup / -b
 
 - **CLAUDE_CODE_CMD**: auto-detected during `ralph-enable`/`ralph-setup` (prefers `claude`, falls back to npx); validated at startup with `validate_claude_command()` (clear install instructions on failure), then `check_claude_version()` and `check_claude_updates()` run. Version comparisons use `compare_semver()` (proper major→minor→patch, safe for any patch number). Environment variable takes precedence over `.ralphrc`
 - **CLAUDE_AUTO_UPDATE**: keep `true` on workstations (200-500ms overhead is negligible); set `false` in Docker (version pinned at image build) and air-gapped environments (registry unreachable). Update failure is non-blocking — Ralph logs a warning and continues
-- **CLAUDE_MODEL / CLAUDE_EFFORT**: set in `.ralphrc` or as env vars (env takes precedence); applied as `--model`/`--effort` flags on every invocation
+- **CLAUDE_MODEL / CLAUDE_EFFORT**: set in `.ralphrc` or as env vars (env takes precedence); applied as `--model`/`--effort` flags on every invocation. CLI flag `--model <name>` accepts any alias (`haiku`, `sonnet`, `opus`, `fable`) or full `claude-*` ID and exits with a suggestion list if the name is unrecognised
 - **CLI options**: `--output-format json|text` (`--live` requires JSON and auto-switches), `--allowed-tools "..."`, `--no-continue` (fresh session each loop)
 
 **Loop context**: each iteration injects context via `build_loop_context()` — loop number, remaining fix_plan.md tasks, circuit breaker state (if not CLOSED), previous loop summary, and corrective guidance if the previous loop detected questions.

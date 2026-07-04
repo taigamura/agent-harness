@@ -61,6 +61,8 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 
 > `/triage` is not part of this flow. `/to-prd` and `/to-issues` already apply the `ready-for-agent` label. Run `/triage` only for issues that arrive from outside this flow (human bug reports, external PRs) that start as `needs-triage`.
 
+> **Note on `ralph_import.sh`**: This upstream ralph tool is not part of this workflow. It replaces `/to-issues → /to-fix-plan` for teams who already have a PRD and want to generate `fix_plan.md` automatically — it assumes alignment has already happened elsewhere. The `/grill-me → /to-prd` steps this workflow uses first are not replaceable by it: that's where the design gets fully resolved before any code runs. If you're using this harness, skip `ralph_import.sh` entirely.
+
 ### Stage 6 — Implementation (AFK)
 
 ```bash

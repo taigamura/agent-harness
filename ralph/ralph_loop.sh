@@ -2922,6 +2922,9 @@ Options:
     -v, --verbose           Show detailed progress updates during execution
     -l, --live              Show Claude Code output in real-time (auto-switches to JSON output)
     -t, --timeout MIN       Set Claude Code execution timeout in minutes (default: $CLAUDE_TIMEOUT_MINUTES)
+    --model NAME            Use a specific model by alias (haiku, sonnet, opus, fable) or full ID
+                            (e.g. claude-haiku-4-5-20251001). If NAME is unrecognised, shows the
+                            closest matches and exits.
     --reset-circuit         Reset circuit breaker to CLOSED state
     --circuit-status        Show circuit breaker status and exit
     --auto-reset-circuit    Auto-reset circuit breaker on startup (bypasses cooldown)
@@ -3063,6 +3066,53 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: Timeout must be a positive integer between 1 and 120 minutes"
                 exit 1
             fi
+            shift 2
+            ;;
+        --model)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --model requires a model name or alias"
+                exit 1
+            fi
+            _model_input="$2"
+            _known_aliases=(haiku sonnet opus fable)
+            _matched=false
+            for _alias in "${_known_aliases[@]}"; do
+                if [[ "$_model_input" == "$_alias" ]]; then
+                    _matched=true
+                    break
+                fi
+            done
+            if [[ "$_matched" == false && "$_model_input" =~ ^claude- ]]; then
+                _matched=true
+            fi
+            if [[ "$_matched" == false ]]; then
+                echo "Error: Unknown model '$_model_input'"
+                echo ""
+                echo "Known aliases (resolve to latest of that family):"
+                for _alias in "${_known_aliases[@]}"; do
+                    echo "  $_alias"
+                done
+                echo ""
+                echo "Or pass a full model ID starting with 'claude-', e.g.:"
+                echo "  claude-haiku-4-5-20251001"
+                echo "  claude-sonnet-5"
+                echo ""
+                # Simple fuzzy: show aliases that share a 3-char prefix with the input
+                _suggestions=()
+                for _alias in "${_known_aliases[@]}"; do
+                    if [[ "$_alias" == *"${_model_input:0:3}"* || "$_model_input" == *"${_alias:0:3}"* ]]; then
+                        _suggestions+=("$_alias")
+                    fi
+                done
+                if [[ ${#_suggestions[@]} -gt 0 ]]; then
+                    echo "Did you mean:"
+                    for _s in "${_suggestions[@]}"; do
+                        echo "  $_s"
+                    done
+                fi
+                exit 1
+            fi
+            CLAUDE_MODEL="$_model_input"
             shift 2
             ;;
         --reset-circuit)
