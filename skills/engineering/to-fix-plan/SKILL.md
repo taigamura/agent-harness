@@ -18,6 +18,9 @@ work — it synthesises issues you have already shaped into the format the loop 
 > …` + `ralph --process-queue`), the loop reads issues directly and you do not need a fix_plan. Use
 > this skill when you drive the loop off the `local` source — i.e. `.ralphrc` has `local` in
 > `TASK_SOURCES` — and you want a single curated, ordered, scope-fenced plan file.
+>
+> If the issue set has real dependencies (any slice `Blocked by: #N`), prefer `/to-queue` instead —
+> the queue keeps the dep graph live and reorders around blockers, which a flat checklist cannot.
 
 ## Why a curated fix_plan beats a raw queue import
 
@@ -54,10 +57,14 @@ by counting checked vs unchecked boxes. You are only adding/reordering the unche
 
 - **Blockers first.** Sort by the issues' dependency relationships so the single-highest-unchecked
   item is always unblocked.
-- **Then by tracer-bullet priority** (mirror the loop's own preference): critical bugfixes → dev
+- **Read the priority label off each issue** — `/to-issues` stamps `P0` / `P1` / `P2` at publish
+  time. Map those directly onto frankbria's three buckets: **P0 → High Priority**, **P1 → Medium
+  Priority**, **P2 → Low Priority**. Do not invent priorities here; if a `ready-for-agent` issue
+  has no priority label, stop and ask the user to re-run `/to-issues` on it (or add the label with
+  `gh issue edit <N> --add-label P1`).
+- Within each bucket, mirror the loop's own tie-breaking preference: critical bugfixes → dev
   infrastructure (tests/types/scripts) → tracer-bullet feature slices → polish/quick wins →
   refactors.
-- Map that onto frankbria's three buckets: **High Priority**, **Medium Priority**, **Low Priority**.
 
 ### 4. Write each item as one actionable, self-contained line
 

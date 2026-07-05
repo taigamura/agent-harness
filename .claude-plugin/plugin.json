@@ -9,6 +9,8 @@
     "./skills/engineering/setup-matt-pocock-skills",
     "./skills/engineering/tdd",
     "./skills/engineering/to-issues",
+    "./skills/engineering/to-fix-plan",
+    "./skills/engineering/to-queue",
     "./skills/engineering/to-prd",
     "./skills/engineering/prototype",
     "./skills/engineering/domain-modeling",

@@ -13,7 +13,8 @@ Reachable only when you type them (`disable-model-invocation: true`).
 - **[setup-matt-pocock-skills](./setup-matt-pocock-skills/SKILL.md)** — Configure this repo's issue-tracker choice, triage label vocabulary, and domain doc layout, so the engineering skills that depend on these conventions apply the right ones. Run once per repo.
 - **[to-issues](./to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
 - **[to-prd](./to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker.
-- **[to-fix-plan](./to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). The bridge from HITL planning to the ralph loop.
+- **[to-fix-plan](./to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). The bridge from HITL planning to the ralph loop when the graph is flat.
+- **[to-queue](./to-queue/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — dependency-aware task source for `ralph --process-queue`. Use when the graph has real blockers.
 - **[prototype](./prototype/SKILL.md)** — Build a throwaway prototype — a runnable terminal app for state/logic questions, or several toggleable UI variations.
 
 ## Model-invoked

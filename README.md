@@ -61,10 +61,14 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 ### Stage 5 — Kanban (HITL)
 
 ```
-/to-issues   →   /to-fix-plan
+/to-issues   →   /to-fix-plan   (flat graph)
+             →   /to-queue      (any Blocked-by)
 ```
 
-`/to-issues` breaks the PRD into vertical-slice tickets (each a thin cut through every layer — schema, API, UI, tests — not a horizontal layer). `/to-fix-plan` materialises the `ready-for-agent` issues into `.ralph/fix_plan.md`, the task list the loop reads.
+`/to-issues` breaks the PRD into vertical-slice tickets (each a thin cut through every layer — schema, API, UI, tests — not a horizontal layer), grills you on priority (`P0`/`P1`/`P2`) and Blocked-by per slice, and publishes the issues with those labels. At the end it recommends the downstream skill based on the dependency graph:
+
+- **Flat set** (every slice `Blocked by: None`) → `/to-fix-plan` materialises the issues into `.ralph/fix_plan.md`, the checklist the linear loop reads top-to-bottom.
+- **Real dependencies** (any slice `Blocked by: #N`) → `/to-queue` loads the issues into `ralph-queue`, which keeps the dep graph live and picks the next ready item on every step. Use `ralph --process-queue` in Stage 6 instead of plain `ralph`.
 
 > `/triage` is not part of this flow. `/to-prd` and `/to-issues` already apply the `ready-for-agent` label. Run `/triage` only for issues that arrive from outside this flow (human bug reports, external PRs) that start as `needs-triage`.
 
@@ -73,11 +77,12 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 ### Stage 6 — Implementation (AFK)
 
 ```bash
-ralph --dry-run   # simulate without API calls — verify the task list looks right
-ralph             # run the loop
+ralph --dry-run          # simulate without API calls — verify the task list looks right
+ralph                    # linear: run the loop off .ralph/fix_plan.md
+ralph --process-queue    # queue: dependency-aware; --halt-on-failure recommended when deps exist
 ```
 
-The RALPH loop picks tasks from `.ralph/fix_plan.md`, runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
+The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json` under `--process-queue`), runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
 
 #### Interrupting and resuming the loop on another machine
 
@@ -227,6 +232,8 @@ Skills I use daily for code work.
 - **[improve-codebase-architecture](./skills/engineering/improve-codebase-architecture/SKILL.md)** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 - **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo's issue-tracker choice, triage label vocabulary, and domain doc layout, so `/to-prd`, `/to-issues`, `/triage`, and `/qa` know what conventions to follow here. Run once per repo before first use of the engineering flow.
 - **[to-issues](./skills/engineering/to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
+- **[to-fix-plan](./skills/engineering/to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). Use when the graph is flat.
+- **[to-queue](./skills/engineering/to-queue/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — dependency-aware task source for `ralph --process-queue`. Use when the graph has real blockers.
 - **[to-prd](./skills/engineering/to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker. No interview — just synthesizes what you've already discussed.
 - **[prototype](./skills/engineering/prototype/SKILL.md)** — Build a throwaway prototype to flesh out a design — either a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
 

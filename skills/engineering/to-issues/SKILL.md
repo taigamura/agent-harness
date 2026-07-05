@@ -39,20 +39,28 @@ Break the plan into **tracer bullet** issues. Each issue is a thin vertical slic
 Present the proposed breakdown as a numbered list. For each slice, show:
 
 - **Title**: short descriptive name
+- **Priority**: your recommended `P0` (critical / must ship first) / `P1` (important) / `P2` (nice-to-have)
 - **Blocked by**: which other slices (if any) must complete first
 - **User stories covered**: which user stories this addresses (if the source material has them)
 
 Ask the user:
 
 - Does the granularity feel right? (too coarse / too fine)
+- Are the priority tags right?
 - Are the dependency relationships correct?
 - Should any slices be merged or split further?
 
-Iterate until the user approves the breakdown.
+Iterate until the user approves the breakdown. Every slice must land with **exactly one** priority
+tag (`P0` / `P1` / `P2`) — this becomes a GitHub label at publish time and is what the downstream
+ralph loop (both `/to-fix-plan` and `/to-queue`) reads to order work.
 
 ### 5. Publish the issues to the issue tracker
 
 For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
+
+Also stamp each issue with its approved priority label — the label string is the bare priority tag
+(`P0` / `P1` / `P2`). Both `ralph-queue` and `/to-fix-plan` read these labels; if you omit them,
+the downstream ordering collapses to arrival order.
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
@@ -82,3 +90,17 @@ Or "None - can start immediately" if no blockers.
 </issue-template>
 
 Do NOT close or modify any parent issue.
+
+### 6. Recommend the downstream skill
+
+After publishing, tell the user which ralph back-end fits the graph you just built:
+
+- **All slices `Blocked by: None`** → recommend `/to-fix-plan`. A flat set runs top-to-bottom
+  through `.ralph/fix_plan.md`; the queue's dep-aware ordering buys you nothing over the checklist,
+  and the fix_plan header carries a Definition-of-done and Out-of-scope fence prose that suits
+  linear runs.
+- **Any slice has a real `Blocked by: #N`** → recommend `/to-queue`. The queue keeps the dep graph
+  live and picks the next ready item on every step — when a mid-graph item unblocks after a later
+  item completes, or when a blocker stalls, the queue reorders around it. `fix_plan.md` cannot.
+
+The user decides; don't invoke the downstream skill for them.
