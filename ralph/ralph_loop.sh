@@ -979,6 +979,13 @@ should_exit_gracefully() {
     fi
 
     if [[ $recent_completion_indicators -ge 2 ]] && [[ "$claude_exit_signal" == "true" ]]; then
+        if [[ -f "$RALPH_DIR/fix_plan.md" ]]; then
+            local skipped_items
+            skipped_items=$(_count_blocking_unchecked "$RALPH_DIR/fix_plan.md")
+            if [[ $skipped_items -gt 0 ]]; then
+                log_status "WARN" "EXIT_SIGNAL=true but $skipped_items unchecked non-optional item(s) remain in fix_plan.md — loop exiting with unfinished work; consider ralph-queue for dependency-aware ordering" >&2
+            fi
+        fi
         log_status "WARN" "Exit condition: Strong completion indicators ($recent_completion_indicators) with EXIT_SIGNAL=true" >&2
         echo "project_complete"
         return 0
