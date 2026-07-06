@@ -116,6 +116,249 @@ Clear context before reviewing so the agent reads the diff cold — not with the
 
 A human executes the QA checklist against the running build. Only humans catch "technically passes tests but wrong UX" failures. New failures become tickets and feed back into Stage 5.
 
+## Ralph
+
+### Understanding Ralph Files
+
+After `harness-init` (or `ralph-enable` directly), your project's `.ralph/` directory contains:
+
+| File | Auto-generated? | You should… |
+|------|-----------------|-------------|
+| `.ralph/PROMPT.md` | Yes (smart defaults) | **Review & customize** project goals and principles |
+| `.ralph/fix_plan.md` | Yes (can import tasks) | **Add/modify** specific implementation tasks |
+| `.ralph/AGENT.md` | Yes (detects build commands) | Rarely edit (auto-maintained by Ralph) |
+| `.ralph/specs/` | Empty directory | Add files when `PROMPT.md` isn't detailed enough |
+| `.ralph/specs/stdlib/` | Empty directory | Add reusable patterns and conventions |
+| `.ralphrc` | Yes (project-aware) | Rarely edit (sensible defaults) |
+
+```
+PROMPT.md (high-level goals)
+    ↓
+specs/ (detailed requirements when needed)
+    ↓
+fix_plan.md (specific tasks Ralph executes)
+    ↓
+AGENT.md (build/test commands — auto-maintained)
+```
+
+### Configuration (.ralphrc)
+
+```bash
+PROJECT_NAME="my-project"
+PROJECT_TYPE="typescript"
+
+# Claude Code CLI command
+CLAUDE_CODE_CMD="claude"
+# CLAUDE_CODE_CMD="npx @anthropic-ai/claude-code"
+
+# Shell init file — source before running claude (for zsh/fish users)
+#RALPH_SHELL_INIT_FILE="~/.zshrc"
+
+# Loop settings
+MAX_CALLS_PER_HOUR=100
+CLAUDE_TIMEOUT_MINUTES=15
+CLAUDE_OUTPUT_FORMAT="json"
+#MAX_TOKENS_PER_HOUR=500000   # 0 = disabled
+
+# Tool permissions
+ALLOWED_TOOLS="Write,Read,Edit,Bash(git *),Bash(npm *),Bash(pytest)"
+
+# Session management
+SESSION_CONTINUITY=true
+SESSION_EXPIRY_HOURS=24
+
+# Circuit breaker thresholds
+CB_NO_PROGRESS_THRESHOLD=3
+CB_SAME_ERROR_THRESHOLD=5
+CB_COOLDOWN_MINUTES=30
+CB_AUTO_RESET=false   # true = bypass cooldown on startup (fully unattended)
+```
+
+**Optional sections in `fix_plan.md`** — by default Ralph loops until every `- [ ]` is checked. Mark work as genuinely optional by placing it under a heading called `Optional`, `Future`, `Future Enhancements`, or `Nice to Have` (configurable via `OPTIONAL_SECTIONS` in `.ralphrc`, comma-separated, case-insensitive):
+
+```markdown
+## High Priority
+- [x] Core feature
+
+## Optional
+- [ ] Frontend integration   # does NOT block exit
+- [ ] SMS notifications      # does NOT block exit
+```
+
+### Integration Hooks
+
+Two env-var hooks let external tooling plug into the loop without patching ralph itself. Both are no-ops when unset.
+
+| Env var | When it runs | Exit code semantics |
+|---------|-------------|---------------------|
+| `SAP_HARNESS_COMPOSE` | Before each Claude invocation | `0` = proceed; `42` = sprint done, stop cleanly; other non-zero = error, stop |
+| `SAP_HARNESS_POST_ITER` | After each successful iteration | Non-zero logged as warning; loop continues |
+
+`SAP_HARNESS_COMPOSE` receives the current `PROMPT_FILE` path as `$1` and is expected to overwrite it in place. `SAP_HARNESS_POST_ITER` receives no arguments.
+
+```bash
+export SAP_HARNESS_COMPOSE=/path/to/compose_prompt.sh
+export SAP_HARNESS_POST_ITER=/path/to/post_iteration.sh
+```
+
+### Signal-File Loop Control
+
+Two files in the project's `.ralph/` directory control the loop without killing the process:
+
+```bash
+touch .ralph/pause    # pause at the next iteration boundary (loop spins until removed)
+touch .ralph/stop     # clean exit at the next iteration boundary
+rm .ralph/pause       # resume a paused loop
+```
+
+Both files are gitignored. In-flight Claude sessions run to completion naturally before the gate fires.
+
+### GitHub Issue Lifecycle
+
+Pass `--github-issue <ref>` to `ralph` to close the loop on the whole GitHub workflow. All operations are opt-in and degrade gracefully — a `gh` failure is logged and the loop continues.
+
+```bash
+# Post a progress comment every 5 loops
+ralph --github-issue 69 --comment-progress --comment-interval 5
+
+# On completion: PR linked to the issue, summary comment, close it
+ralph --github-issue 69 --create-pr --link-issue --close-summary --auto-close
+
+# Add labels on close; open a follow-up for any TODO/FIXME in the diff
+ralph --github-issue 69 --auto-close --add-label completed \
+      --create-followups --followup-label tech-debt
+
+# Draft PR for manual review
+ralph --github-issue 69 --create-pr --draft-pr
+```
+
+These can also be set in `.ralphrc` (`COMMENT_PROGRESS`, `AUTO_CLOSE`, `CREATE_PR`, etc.).
+
+### Batch Processing / Issue Queue
+
+`ralph-queue` builds a persistent queue at `.ralph/queue.json` and processes items sequentially by priority and dependency order.
+
+```bash
+# Build a queue
+ralph-queue add --github-label "bug,P0"
+ralph-queue add --github-milestone "v1.0"
+ralph-queue add --github-issues 69,70,71
+ralph-queue add --prd ./docs/feature.md
+
+# Manage
+ralph-queue status            # show queue; --json for machine output
+ralph-queue reorder           # sort by priority (P0 first)
+ralph-queue validate          # check for circular dependencies
+ralph-queue remove 69
+ralph-queue clear
+
+# Process
+ralph --process-queue                    # priority + dependency order
+ralph --process-queue --halt-on-failure  # stop at first failure
+ralph --resume-queue                     # continue remaining pending items
+```
+
+### Sandbox Execution
+
+**Docker**: Ralph's orchestration stays on the host; only Claude's execution is containerised.
+
+```bash
+docker pull ghcr.io/frankbria/ralph-sandbox:latest
+ralph --sandbox docker
+ralph --sandbox docker --sandbox-image node:20 --sandbox-memory 8g --sandbox-cpus 4
+ralph --sandbox docker --sandbox-network none   # full isolation (blocks Claude API — special images only)
+```
+
+**E2B cloud**: project uploaded once at start; changed files sync back after every iteration.
+
+```bash
+pip install e2b
+export E2B_API_KEY="e2b_..."
+ralph --sandbox e2b
+ralph --sandbox e2b --sandbox-max-cost 5.00 --sandbox-cost-alert 2.00
+ralph --sandbox e2b --sync-include "src/**,tests/**" --sync-exclude "*.log,node_modules"
+```
+
+### Monitoring and Debugging
+
+```bash
+ralph --monitor              # integrated tmux dashboard (recommended)
+ralph-monitor                # manual monitoring in a separate terminal
+ralph --status               # JSON status output
+tail -f .ralph/logs/ralph.log
+ralph-stats                  # metrics summary from .ralph/logs/metrics.jsonl
+```
+
+**tmux controls:** `Ctrl+B D` detach (keeps running), `Ctrl+B ←/→` switch panes, `tmux attach -t <name>` reattach.
+
+### Common Issues
+
+- **Ralph exits on first loop** — Claude Code CLI not installed or not in PATH. Add `CLAUDE_CODE_CMD="npx @anthropic-ai/claude-code"` to `.ralphrc` if using npx.
+- **Permission denied** — Update `ALLOWED_TOOLS` in `.ralphrc` (e.g. add `Bash(npm *)`), then `ralph --reset-session`.
+- **Stuck / premature exit** — Check `fix_plan.md` for unclear tasks; review whether Claude is setting `EXIT_SIGNAL: false`.
+- **5-hour API limit** — Ralph detects it and prompts: wait 60 min or exit. In unattended mode it auto-waits.
+- **Session expired** — Sessions expire after 24 hours by default; `ralph --reset-session` to start fresh.
+- **`timeout: command not found` (macOS)** — `brew install coreutils`.
+- **Circuit breaker open** — `ralph --reset-circuit` or set `CB_AUTO_RESET=true` in `.ralphrc`.
+
+### System Requirements
+
+- **Bash 4.0+**
+- **Claude Code CLI** — `npm install -g @anthropic-ai/claude-code`
+- **tmux** — `apt-get install tmux` / `brew install tmux`
+- **jq** — JSON processing
+- **Git** — projects must be git repos
+- **GNU coreutils** — for `timeout`; on macOS: `brew install coreutils`
+
+### Command Reference
+
+```bash
+# Loop options
+ralph [OPTIONS]
+  -h, --help              show help
+  -c, --calls NUM         max calls/hour (default: 100)
+  -p, --prompt FILE       prompt file (default: .ralph/PROMPT.md)
+  -s, --status            show status and exit
+  -m, --monitor           start with tmux monitoring
+  -v, --verbose           detailed progress updates
+  -l, --live              real-time Claude Code output streaming
+  -t, --timeout MIN       execution timeout in minutes (1-120, default: 15)
+      --dry-run           simulate without API calls
+  -n, --notify            desktop notifications for key events
+  -b, --backup            git backup branch before each loop
+      --rollback [BRANCH] roll back to a backup branch
+      --output-format     json (default) or text
+      --allowed-tools     allowed Claude tools
+      --no-continue       fresh session each loop
+      --session-expiry    session expiration in hours (default: 24)
+      --reset-circuit     reset the circuit breaker
+      --circuit-status    show circuit breaker status
+      --auto-reset-circuit auto-reset circuit breaker on startup
+      --reset-session     reset session state manually
+      --github-issue REF  track a GitHub issue (enables lifecycle flags)
+      --process-queue     process queued issues sequentially
+      --resume-queue      continue remaining pending items
+      --queue-status      show the queue and exit
+      --queue-next        print the next ready issue id
+      --queue-clear       empty the queue
+      --queue-remove <id> remove one item
+      --sandbox docker|e2b run Claude in an isolated container/cloud sandbox
+
+# Project commands
+ralph-setup my-project   # create new project
+ralph-enable             # enable ralph in existing project (interactive)
+ralph-enable-ci          # same, non-interactive
+ralph-import prd.md      # convert PRD/spec to ralph project
+ralph-queue add …        # add items to the batch queue
+ralph-monitor            # live monitoring dashboard
+ralph-stats              # metrics summary
+ralph-migrate            # migrate flat structure to .ralph/ subfolder
+
+# tmux session management
+tmux list-sessions
+tmux attach -t <name>
+```
+
 ## Why These Skills Exist
 
 I built these skills as a way to fix common failure modes I see with Claude Code, Codex, and other coding agents.
