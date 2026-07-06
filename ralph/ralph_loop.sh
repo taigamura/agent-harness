@@ -1832,6 +1832,34 @@ execute_claude_code() {
     # Build the Claude CLI command with modern flags
     local use_modern_cli=false
 
+    # --- sap-harness v0.2: compose per-iteration prompt from active PBI -----
+    # Overwrites $PROMPT_FILE in place so ralph's existing loading path
+    # (build_claude_command → -p) is unchanged. Guarded by env var so ralph
+    # continues to work standalone when sap-harness isn't installed.
+    #
+    # Termination model: this runs inside execute_claude_code(), so `break`
+    # would only exit a subshell — not the main while-true. Instead we drop
+    # the signal file .ralph/stop on hard-exit conditions; the next iteration's
+    # signal-file gate (top of main loop) picks it up and exits cleanly.
+    if [[ -n "${SAP_HARNESS_COMPOSE:-}" && -f "$SAP_HARNESS_COMPOSE" ]]; then
+        bash "$SAP_HARNESS_COMPOSE" "$PROMPT_FILE"
+        local compose_exit=$?
+        if [[ $compose_exit -eq 42 ]]; then
+            log_status "INFO" "sap-harness: sprint done (backlog + active both empty) — signaling stop"
+            mkdir -p "$RALPH_DIR"
+            touch "$RALPH_DIR/stop"
+            update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo 0)" "sprint_done" "halted" "no_active_pbi"
+            return 1
+        elif [[ $compose_exit -ne 0 ]]; then
+            log_status "ERROR" "sap-harness: prompt composition failed (exit $compose_exit) — signaling stop"
+            mkdir -p "$RALPH_DIR"
+            touch "$RALPH_DIR/stop"
+            update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo 0)" "compose_failed" "halted" "prompt_composition_error"
+            return 1
+        fi
+    fi
+    # --- end sap-harness compose --------------------------------------------
+
     if build_claude_command "$PROMPT_FILE" "$loop_context" "$session_id"; then
         use_modern_cli=true
         log_status "INFO" "Using modern CLI mode (${CLAUDE_OUTPUT_FORMAT} output)"
@@ -2693,6 +2721,22 @@ main() {
     while true; do
         loop_count=$((loop_count + 1))
 
+        # --- sap-harness v0.2 (Q5): signal-file HITL gate --------------------
+        # .ralph/pause = paused; spin here until removed.
+        # .ralph/stop  = clean exit at iteration boundary.
+        # Reviewers are per-commit (Q5), so a pause between iterations halts
+        # the reviewer fleet naturally — no separate lifecycle to manage.
+        while [[ -f "$RALPH_DIR/pause" ]]; do
+            log_status "INFO" "sap-harness: paused (.ralph/pause present); sleeping 5s"
+            sleep 5
+        done
+        if [[ -f "$RALPH_DIR/stop" ]]; then
+            log_status "INFO" "sap-harness: .ralph/stop present — clean exit"
+            update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo 0)" "sap_harness_stop" "halted" "signal_file"
+            break
+        fi
+        # --- end sap-harness signal gate -------------------------------------
+
         # Rotate log if it exceeds 10MB (Issue #18)
         rotate_logs
 
@@ -2830,6 +2874,15 @@ main() {
             if [[ -n "$GITHUB_ISSUE" ]]; then
                 lifecycle_post_progress "$loop_count"
             fi
+
+            # --- sap-harness v0.2: post-iteration folder moves --------------
+            # After a successful iteration, check whether the active PBI is
+            # done (AC + DoD all checked → done/) or blocked (## Attempts >= 3
+            # → blocked/). Guarded by env var; safe when sap-harness absent.
+            if [[ -n "${SAP_HARNESS_POST_ITER:-}" && -f "$SAP_HARNESS_POST_ITER" ]]; then
+                bash "$SAP_HARNESS_POST_ITER" || log_status "WARN" "sap-harness: post-iteration hook failed (exit $?)"
+            fi
+            # --- end sap-harness post-iteration ------------------------------
 
             # Brief pause between successful executions
             sleep 5

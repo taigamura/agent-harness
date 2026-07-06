@@ -399,6 +399,22 @@ parse_json_response() {
         fi
     fi
 
+    # Bug Y-2 (sap-harness, v0.3a-2026-07-04): downgrade denials when the session
+    # completed anyway. Claude Code's JSON includes `terminal_reason`; when it is
+    # "completed", Claude worked around the denial (e.g., via fallback tool or
+    # alternate approach) and the session ended successfully. Counting that as a
+    # circuit-breaker failure trips OPEN on sessions that made real progress.
+    local has_permission_denial_recovery="false"
+    if [[ "$has_permission_denials" == "true" ]]; then
+        local terminal_reason
+        terminal_reason=$(jq -r '.terminal_reason // "unknown"' "$output_file" 2>/dev/null)
+        if [[ "$terminal_reason" == "completed" ]]; then
+            has_permission_denials="false"
+            has_permission_denial_recovery="true"
+            [[ "${VERBOSE_PROGRESS:-}" == "true" ]] && echo "DEBUG: Downgraded has_permission_denials — terminal_reason=completed ($permission_denial_count denials, session recovered)" >&2
+        fi
+    fi
+
     # Normalize values
     # Convert exit_signal to boolean string
     # Only infer from status/completion_status if no explicit EXIT_SIGNAL was provided
@@ -463,6 +479,7 @@ parse_json_response() {
         --argjson denied_commands "$denied_commands_json" \
         --argjson has_compound_command_limitation "$has_compound_command_limitation" \
         --argjson compound_command_count "$compound_command_count" \
+        --argjson has_permission_denial_recovery "$has_permission_denial_recovery" \
         '{
             status: $status,
             exit_signal: $exit_signal,
@@ -480,6 +497,7 @@ parse_json_response() {
             denied_commands: $denied_commands,
             has_compound_command_limitation: $has_compound_command_limitation,
             compound_command_count: $compound_command_count,
+            has_permission_denial_recovery: $has_permission_denial_recovery,
             metadata: {
                 loop_number: $loop_number,
                 session_id: $session_id
