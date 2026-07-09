@@ -93,12 +93,24 @@ get_priority_from_labels() {
 # Echo issue numbers referenced as dependencies ("depends on #N",
 # "blocked by #N", "requires #N"), one per line, deduped and numerically
 # sorted. Case-insensitive; tolerates an optional colon and extra spaces.
+# Also handles the GitHub section-header + list-item format:
+#   ## Blocked by
+#   - #39
 parse_issue_dependencies() {
     local text="${1:-}"
-    echo "$text" \
-        | grep -oiE '(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#[0-9]+' \
-        | grep -oE '[0-9]+' \
-        | sort -n -u
+    {
+        # Inline form: "blocked by #N", "depends on #N", "requires #N"
+        echo "$text" \
+            | grep -oiE '(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#[0-9]+' \
+            | grep -oE '[0-9]+'
+
+        # Section-header form: a "## Blocked by / Depends on / Requires" heading
+        # followed by list items "- #N" or "* #N" (until the next heading or EOF)
+        echo "$text" | awk 'BEGIN{IGNORECASE=1}
+            /^##[[:space:]]+(blocked by|depends on|requires)[[:space:]]*$/{ in_section=1; next }
+            /^#/{ in_section=0 }
+            in_section && /^[[:space:]]*[-*][[:space:]]*#[0-9]+/{ gsub(/[^0-9]/, " "); for(i=1;i<=NF;i++) if($i+0>0) print $i+0 }'
+    } | sort -n -u
 }
 
 # --- mutations --------------------------------------------------------------
