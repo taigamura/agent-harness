@@ -1,3 +1,61 @@
 #!/bin/bash
-# ralph-code — runs ralph with the Claude Code backend
-exec ralph "$@"
+# ralph-code — autonomous aider loop skeleton
+# Sources lib utilities, guards for .ralph/, runs aider with a placeholder task,
+# writes progress.json after each execution, and respects MAX_ITERATIONS.
+
+set -euo pipefail
+
+HARNESS_DIR="$HOME/agent-harness"
+
+# Source required lib components
+# shellcheck source=/dev/null
+source "$HARNESS_DIR/ralph/lib/queue_manager.sh"
+# shellcheck source=/dev/null
+source "$HARNESS_DIR/ralph/lib/log_utils.sh"
+# shellcheck source=/dev/null
+source "$HARNESS_DIR/ralph/lib/date_utils.sh"
+
+RALPH_DIR=".ralph"
+
+# Guard: require .ralph/ in CWD
+if [[ ! -d "$RALPH_DIR" ]]; then
+    echo "error: .ralph/ directory not found in the current directory." >&2
+    echo "Run 'harness-init' to initialise this project for ralph-code." >&2
+    exit 1
+fi
+
+MAX_ITERATIONS="${MAX_ITERATIONS:-20}"
+iteration=0
+
+while [[ "$iteration" -lt "$MAX_ITERATIONS" ]]; do
+    iteration=$(( iteration + 1 ))
+    echo "ralph-code: iteration $iteration / $MAX_ITERATIONS"
+
+    aider \
+        --config "$HARNESS_DIR/config/aider.conf.yml" \
+        --yes \
+        --message "Implement the next task from .ralph/fix_plan.md"
+    exit_code=$?
+
+    timestamp="$(get_iso_timestamp)"
+    if [[ "$exit_code" -eq 0 ]]; then
+        status="completed"
+    else
+        status="failed"
+    fi
+
+    printf '{"status": "%s", "timestamp": "%s"}\n' "$status" "$timestamp" \
+        > "$RALPH_DIR/progress.json"
+
+    echo "ralph-code: wrote $RALPH_DIR/progress.json (status=$status)"
+
+    if [[ "$status" == "failed" ]]; then
+        echo "ralph-code: aider exited with code $exit_code; stopping loop." >&2
+        break
+    fi
+done
+
+if [[ "$iteration" -ge "$MAX_ITERATIONS" ]]; then
+    remaining_tasks=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || echo "unknown")
+    echo "ralph-code: reached MAX_ITERATIONS=$MAX_ITERATIONS. Tasks remaining: $remaining_tasks."
+fi
