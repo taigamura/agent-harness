@@ -1,0 +1,3 @@
+#!/bin/bash
+# ralph-code — runs ralph with the Claude Code backend
+exec ralph "$@"

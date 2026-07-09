@@ -16,7 +16,15 @@ cd agent-harness
 ./setup-machine.sh
 ```
 
-This installs the Claude Code skills and the `ralph` CLI in one step.
+This installs the Claude Code skills, the `ralph` CLI, and the `code`, `ralph-code`, and `ralph-code-issue` bin tools in one step.
+
+**aider + Ollama stack only (optional):** If you want to use aider with a local Ollama model instead of (or alongside) Claude Code, first run:
+
+```bash
+bash install/wsl-setup.sh
+```
+
+This idempotently installs git, python3, pipx, and aider-chat on a fresh WSL Ubuntu. Skip it entirely if you are using Claude Code only — `setup-machine.sh` is all you need.
 
 ### New project (run once per repo)
 

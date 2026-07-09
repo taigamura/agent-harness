@@ -1,0 +1,3 @@
+#!/bin/bash
+# claude-code wrapper — delegates to 'claude' CLI
+exec claude "$@"
