@@ -1,0 +1,20 @@
+# Continue.dev configuration snippet
+#
+# Merge this into (or replace) ~/.continue/config.yaml to wire autocomplete
+# and chat to local Ollama models.
+
+models:
+  - name: qwen2.5-coder 14b (chat)
+    provider: ollama
+    model: qwen2.5-coder:14b-instruct-q4_K_M
+    apiBase: http://localhost:11434
+
+tabAutocompleteModel:
+  name: qwen2.5-coder 1.5b (autocomplete)
+  provider: ollama
+  model: qwen2.5-coder:1.5b-base
+  apiBase: http://localhost:11434
+
+tabAutocompleteOptions:
+  useCopyBuffer: false
+  maxPromptTokens: 1024

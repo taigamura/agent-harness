@@ -1,0 +1,9 @@
+model: ollama/qwen2.5-coder:14b-instruct-q4_K_M
+openai-api-base: http://localhost:11434/v1
+auto-test: true
+auto-commits: true
+dirty-commits: false
+gitignore: true
+stream: true
+edit-format: diff
+map-tokens: 4096

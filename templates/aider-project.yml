@@ -1,0 +1,26 @@
+# Per-repo aider config template
+#
+# Copy this file to the root of a new project as `.aider.conf.yml` and
+# adjust the values to suit the project.
+
+# Model — local Ollama endpoint (override here if the project needs a different model)
+model: ollama/qwen2.5-coder:14b-instruct-q4_K_M
+openai-api-base: http://localhost:11434/v1
+
+# Editing
+edit-format: diff          # "diff" works well with most code; use "whole" for small files
+map-tokens: 4096           # repo-map token budget; increase for large monorepos
+
+# Automation
+auto-test: true            # run test suite after each change
+auto-commits: true         # commit each accepted change automatically
+dirty-commits: false       # do not commit if the working tree is dirty before the edit
+gitignore: true            # respect .gitignore when building the repo map
+
+# Output
+stream: true               # stream model output to terminal
+
+# Project-specific test command (uncomment and adjust)
+# test-cmd: npm test
+# test-cmd: pytest
+# test-cmd: go test ./...
