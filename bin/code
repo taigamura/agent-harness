@@ -1,3 +1,7 @@
 #!/bin/bash
-# claude-code wrapper — delegates to 'claude' CLI
-exec claude "$@"
+# HITL aider launcher — drops into an interactive aider session with harness defaults
+exec aider \
+  --model ollama/qwen2.5-coder:14b-instruct-q4_K_M \
+  --openai-api-base http://localhost:11434/v1 \
+  --config "$HOME/agent-harness/config/aider.conf.yml" \
+  "$@"
