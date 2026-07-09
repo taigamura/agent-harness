@@ -1,0 +1,13 @@
+{
+    "timestamp": "2026-07-09T17:30:24+00:00",
+    "loop_count": 1,
+    "calls_made_this_hour": 4,
+    "max_calls_per_hour": 100,
+    "tokens_used_this_hour": 16592,
+    "max_tokens_per_hour": 0,
+    "last_action": "circuit_breaker_open",
+    "status": "halted",
+    "exit_reason": "stagnation_detected",
+    "sandbox": {"provider": "none"},
+    "next_reset": "03:30:24"
+}

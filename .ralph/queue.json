@@ -1,0 +1,232 @@
+{
+  "version": "1.0",
+  "created_at": "2026-07-09T17:20:21+00:00",
+  "updated_at": "2026-07-09T17:30:09+00:00",
+  "repository": "",
+  "queue": [
+    {
+      "source": "github",
+      "issue_number": 4,
+      "title": "WSL setup script and machine install wiring",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-4",
+      "status": "completed",
+      "added_at": "2026-07-09T17:20:28+00:00",
+      "started_at": "2026-07-09T17:21:45+00:00",
+      "completed_at": "2026-07-09T17:24:32+00:00",
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 5,
+      "title": "Config files and templates",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-5",
+      "status": "completed",
+      "added_at": "2026-07-09T17:20:32+00:00",
+      "started_at": "2026-07-09T17:24:33+00:00",
+      "completed_at": "2026-07-09T17:25:53+00:00",
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 6,
+      "title": "code — HITL aider launcher",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-6",
+      "status": "completed",
+      "added_at": "2026-07-09T17:20:34+00:00",
+      "started_at": "2026-07-09T17:25:54+00:00",
+      "completed_at": "2026-07-09T17:27:46+00:00",
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 7,
+      "title": "ralph-code — loop skeleton",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-7",
+      "status": "completed",
+      "added_at": "2026-07-09T17:20:35+00:00",
+      "started_at": "2026-07-09T17:27:46+00:00",
+      "completed_at": "2026-07-09T17:30:08+00:00",
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 8,
+      "title": "ralph-code — queue.json task source",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-8",
+      "status": "processing",
+      "added_at": "2026-07-09T17:20:37+00:00",
+      "started_at": "2026-07-09T17:30:09+00:00",
+      "completed_at": null,
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 9,
+      "title": "ralph-code — fix_plan.md task source fallback",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-9",
+      "status": "pending",
+      "added_at": "2026-07-09T17:20:39+00:00",
+      "started_at": null,
+      "completed_at": null,
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 10,
+      "title": "ralph-code — retry logic and test detection",
+      "priority": "P0",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_72qg",
+          "name": "P0",
+          "description": "Critical, must ship first",
+          "color": "B60205"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-10",
+      "status": "pending",
+      "added_at": "2026-07-09T17:20:40+00:00",
+      "started_at": null,
+      "completed_at": null,
+      "error_message": ""
+    },
+    {
+      "source": "github",
+      "issue_number": 11,
+      "title": "ralph-code-issue — GitHub issue one-shot",
+      "priority": "P1",
+      "labels": [
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_5r_w",
+          "name": "ready-for-agent",
+          "description": "Ready for autonomous agent work",
+          "color": "0E8A16"
+        },
+        {
+          "id": "LA_kwDOTAzLj88AAAACq_73dQ",
+          "name": "P1",
+          "description": "Important",
+          "color": "E4E669"
+        }
+      ],
+      "milestone": null,
+      "dependencies": [],
+      "id": "github-11",
+      "status": "pending",
+      "added_at": "2026-07-09T17:20:42+00:00",
+      "started_at": null,
+      "completed_at": null,
+      "error_message": ""
+    }
+  ]
+}
