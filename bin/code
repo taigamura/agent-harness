@@ -1,7 +1,9 @@
 #!/bin/bash
 # HITL aider launcher — drops into an interactive aider session with harness defaults
-exec aider \
-  --model ollama/qwen2.5-coder:14b-instruct-q4_K_M \
-  --openai-api-base http://localhost:11434/v1 \
-  --config "$HOME/agent-harness/config/aider.conf.yml" \
-  "$@"
+HARNESS_DIR="${HARNESS_DIR:-$HOME/agent-harness}"
+AIDER_CONF="$HARNESS_DIR/config/aider.conf.yml"
+
+aider_args=(aider)
+[[ -f "$AIDER_CONF" ]] && aider_args+=(--config "$AIDER_CONF")
+
+exec "${aider_args[@]}" "$@"
