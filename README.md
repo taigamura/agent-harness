@@ -84,6 +84,8 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 
 ### Stage 6 — Implementation (AFK)
 
+**Claude Code (default):**
+
 ```bash
 ralph --dry-run          # simulate without API calls — verify the task list looks right
 ralph                    # linear: run the loop off .ralph/fix_plan.md
@@ -91,6 +93,16 @@ ralph --process-queue    # queue: dependency-aware; --halt-on-failure recommende
 ```
 
 The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json` under `--process-queue`), runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
+
+**aider+Ollama (local model, no Anthropic API):**
+
+```bash
+ralph-code               # same task sources; uses aider + qwen2.5-coder instead of Claude Code
+ralph-code-issue <N>     # one-shot: pull GitHub issue N, run aider on it, close on success
+code                     # HITL: drop into an interactive aider session with harness defaults
+```
+
+`ralph-code` reads `.ralph/queue.json` (pending items first) or falls back to `.ralph/fix_plan.md`, invokes `aider` with the loop constitution from `config/ralph-prompt.md`, retries up to 3× on test failure, and writes `.ralph/progress.json` after each iteration (compatible with `ralph_monitor.sh`). Requires `install/wsl-setup.sh` to have run once on the machine.
 
 #### Interrupting and resuming the loop on another machine
 
@@ -361,6 +373,11 @@ ralph-queue add …        # add items to the batch queue
 ralph-monitor            # live monitoring dashboard
 ralph-stats              # metrics summary
 ralph-migrate            # migrate flat structure to .ralph/ subfolder
+
+# aider+Ollama stack (local model, installed by setup-machine.sh)
+ralph-code               # AFK loop using aider; queue.json → fix_plan.md task source priority
+ralph-code-issue <N>     # one-shot GitHub issue handler via aider
+code                     # HITL interactive aider session with harness defaults
 
 # tmux session management
 tmux list-sessions
