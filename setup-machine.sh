@@ -24,11 +24,19 @@ echo "Installed: $INSTALL_DIR/harness-init"
 
 echo ""
 
-echo "4/4  Installing bin tools (code, ralph-code, ralph-code-issue)..."
+echo "4/4  Installing bin tools (code, aider-claude-shim)..."
 mkdir -p "$INSTALL_DIR"
-for bin in code ralph-code ralph-code-issue; do
+for bin in code aider-claude-shim; do
   install -m 755 "$SCRIPT_DIR/bin/$bin" "$INSTALL_DIR/$bin"
   echo "Installed: $INSTALL_DIR/$bin"
+done
+
+# Remove old commands that were replaced by the shim
+for old in ralph-code ralph-code-issue; do
+  if [[ -f "$INSTALL_DIR/$old" ]]; then
+    rm "$INSTALL_DIR/$old"
+    echo "Removed stale: $INSTALL_DIR/$old"
+  fi
 done
 
 echo ""
