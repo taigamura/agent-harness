@@ -61,10 +61,13 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 ### Stage 4 — PRD (HITL)
 
 ```
-/grill-me   →   /to-prd
+/grill-me          →   /to-prd
+/grill-with-docs   →   /to-prd
 ```
 
 `/grill-me` interviews you one question at a time until the design is fully resolved. `/to-prd` synthesizes the conversation into a PRD and publishes it to GitHub Issues, auto-labelled `ready-for-agent`. Don't double-check the output — the grilling already produced the shared understanding.
+
+`/grill-with-docs` is the same session but also builds a shared language with the agent as you go — resolving terms into `CONTEXT.md` and recording hard-to-reverse decisions as ADRs in `docs/adr/`. Use it when starting a new feature or project area; the vocabulary it captures benefits every future session. Either way, call `/to-prd` at the end of the same session — both skills synthesize from the current conversation.
 
 ### Stage 5 — Kanban (HITL)
 
