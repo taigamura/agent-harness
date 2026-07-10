@@ -287,6 +287,17 @@ ralph --no-continue
 
 ---
 
+### `--continue`
+Force-enable session continuity for this run, overriding a `SESSION_CONTINUITY=false` set in `.ralphrc` or the environment. Each loop resumes the prior Claude conversation via `--resume` instead of starting fresh.
+
+```bash
+ralph --continue
+```
+
+> Use when you've defaulted `.ralphrc` to stateless loops but want cross-loop memory for a specific run (e.g. a task where later loops benefit from earlier reasoning, not just the fix_plan.md state).
+
+---
+
 ### `--session-expiry HOURS`
 Override how many hours a session ID is kept before it is automatically discarded and a new session starts.
 

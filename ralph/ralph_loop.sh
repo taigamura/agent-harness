@@ -554,9 +554,13 @@ setup_tmux_session() {
     if [[ "$CLAUDE_ALLOWED_TOOLS" != "Write,Read,Edit,Bash(git add *),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git status),Bash(git status *),Bash(git push *),Bash(git pull *),Bash(git fetch *),Bash(git checkout *),Bash(git branch *),Bash(git stash *),Bash(git merge *),Bash(git tag *),Bash(npm *),Bash(pytest)" ]]; then
         ralph_cmd="$ralph_cmd --allowed-tools '$CLAUDE_ALLOWED_TOOLS'"
     fi
-    # Forward --no-continue if session continuity disabled
+    # Forward the resolved continuity state explicitly — the monitored subprocess
+    # re-sources .ralphrc independently, so relying on its hardcoded default (true)
+    # would silently drop a CLI-level --continue/--no-continue override.
     if [[ "$CLAUDE_USE_CONTINUE" == "false" ]]; then
         ralph_cmd="$ralph_cmd --no-continue"
+    else
+        ralph_cmd="$ralph_cmd --continue"
     fi
     # Forward --session-expiry if non-default (default is 24)
     if [[ "$CLAUDE_SESSION_EXPIRY_HOURS" != "24" ]]; then
@@ -3052,6 +3056,7 @@ Modern CLI Options (Phase 1.1):
                             Note: --live mode requires JSON and will auto-switch
     --allowed-tools TOOLS   Comma-separated list of allowed tools (default: $CLAUDE_ALLOWED_TOOLS)
     --no-continue           Disable session continuity across loops
+    --continue              Enable session continuity across loops (overrides .ralphrc/env default)
     --session-expiry HOURS  Set session expiration time in hours (default: $CLAUDE_SESSION_EXPIRY_HOURS)
 
 Files created:
@@ -3078,6 +3083,7 @@ Examples:
     $0 --verbose --timeout 5    # 5-minute timeout with detailed progress
     $0 --output-format text     # Use legacy text output format
     $0 --no-continue            # Disable session continuity
+    $0 --continue                # Force-enable session continuity
     $0 --session-expiry 48      # 48-hour session expiration
 
 HELPEOF
@@ -3217,6 +3223,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-continue)
             CLAUDE_USE_CONTINUE=false
+            shift
+            ;;
+        --continue)
+            CLAUDE_USE_CONTINUE=true
             shift
             ;;
         --session-expiry)

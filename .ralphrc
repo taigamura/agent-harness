@@ -26,7 +26,7 @@ CLAUDE_OUTPUT_FORMAT="json"
 ALLOWED_TOOLS="Write,Read,Edit,Bash(git add *),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git status),Bash(git status *),Bash(git push *),Bash(git pull *),Bash(git fetch *),Bash(git checkout *),Bash(git branch *),Bash(git stash *),Bash(git merge *),Bash(git tag *),Bash(npm *),Bash(pytest)"
 
 # Session management
-SESSION_CONTINUITY=true
+SESSION_CONTINUITY=false
 SESSION_EXPIRY_HOURS=24
 
 # Task sources (for ralph enable --sync)
