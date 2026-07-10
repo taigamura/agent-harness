@@ -16,7 +16,7 @@ cd agent-harness
 ./setup-machine.sh
 ```
 
-This installs the Claude Code skills, the `ralph` CLI, and the `code`, `ralph-code`, and `ralph-code-issue` bin tools in one step.
+This installs the Claude Code skills, the `ralph` CLI, and the `code` bin tool in one step.
 
 **aider + Ollama stack only (optional):** If you want to use aider with a local Ollama model instead of (or alongside) Claude Code, first run:
 
@@ -97,12 +97,16 @@ The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json
 **aider+Ollama (local model, no Anthropic API):**
 
 ```bash
-ralph-code               # same task sources; uses aider + qwen2.5-coder instead of Claude Code
-ralph-code-issue <N>     # one-shot: pull GitHub issue N, run aider on it, close on success
+# In your project's .ralphrc, set:
+#   CLAUDE_CODE_CMD="aider-claude-shim"
+#   CLAUDE_AUTO_UPDATE=false
+ralph                    # same ralph loop, now powered by aider + qwen2.5-coder
+ralph --process-queue    # batch queue works identically
+ralph --github-issue <N> # one-shot GitHub issue, same as before
 code                     # HITL: drop into an interactive aider session with harness defaults
 ```
 
-`ralph-code` reads `.ralph/queue.json` (pending items first) or falls back to `.ralph/fix_plan.md`, invokes `aider` with the loop constitution from `config/ralph-prompt.md`, retries up to 3× on test failure, and writes `.ralph/progress.json` after each iteration (compatible with `ralph_monitor.sh`). Requires `install/wsl-setup.sh` to have run once on the machine.
+`aider-claude-shim` acts as a drop-in replacement for the `claude` CLI. It translates ralph's invocation into `aider --model ollama/<name>`, reads the model from `config/aider.conf.yml` (override with `AIDER_MODEL` env), and synthesises a JSON response ralph's analyzer can parse. All queue, monitoring, and GitHub lifecycle features work unchanged.
 
 #### Interrupting and resuming the loop on another machine
 
@@ -374,9 +378,8 @@ ralph-monitor            # live monitoring dashboard
 ralph-stats              # metrics summary
 ralph-migrate            # migrate flat structure to .ralph/ subfolder
 
-# aider+Ollama stack (local model, installed by setup-machine.sh)
-ralph-code               # AFK loop using aider; queue.json → fix_plan.md task source priority
-ralph-code-issue <N>     # one-shot GitHub issue handler via aider
+# aider+Ollama shim (local model, installed by setup-machine.sh)
+aider-claude-shim        # set CLAUDE_CODE_CMD=aider-claude-shim in .ralphrc to use
 code                     # HITL interactive aider session with harness defaults
 
 # tmux session management

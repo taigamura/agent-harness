@@ -1,0 +1,130 @@
+#!/bin/bash
+# aider-claude-shim — drop-in replacement for the claude CLI used by ralph_loop.sh
+#
+# Set CLAUDE_CODE_CMD=aider-claude-shim in .ralphrc to route ralph through
+# aider+Ollama instead of the Claude CLI. The model is taken from aider.conf.yml
+# (config/aider.conf.yml relative to HARNESS_DIR), or overridden via AIDER_MODEL.
+#
+# This shim:
+#   1. Accepts the full claude CLI argv that build_claude_command() emits
+#   2. Extracts only the -p <prompt> argument; ignores all claude-specific flags
+#   3. Runs aider with the extracted prompt
+#   4. Synthesises a JSON response in ralph's expected flat format so that
+#      response_analyzer.sh can parse it
+#   5. Handles --version so ralph's validate_claude_command() succeeds
+
+set -uo pipefail
+
+HARNESS_DIR="${HARNESS_DIR:-$HOME/agent-harness}"
+AIDER_CONF="${AIDER_CONF:-$HARNESS_DIR/config/aider.conf.yml}"
+RALPH_DIR="${RALPH_DIR:-.ralph}"
+
+# --version: ralph calls $CLAUDE_CODE_CMD --version at startup
+if [[ "${1:-}" == "--version" ]]; then
+    aider_ver=$(aider --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "0.0.0")
+    echo "aider-claude-shim 1.0.0 (aider $aider_ver)"
+    exit 0
+fi
+
+# Parse argv emitted by build_claude_command():
+#   --model <x>  --output-format json  --allowedTools t1 t2 ...  --resume <id>
+#   --append-system-prompt <text>  -p <prompt>
+#
+# Only -p matters; everything else is silently consumed.
+prompt=""
+argv=("$@")
+i=0
+in_allowed_tools=false
+
+while [[ $i -lt ${#argv[@]} ]]; do
+    arg="${argv[$i]}"
+    case "$arg" in
+        -p)
+            i=$(( i + 1 ))
+            prompt="${argv[$i]:-}"
+            in_allowed_tools=false
+            ;;
+        --model|--output-format|--resume|--append-system-prompt|--effort)
+            i=$(( i + 1 ))  # skip value
+            in_allowed_tools=false
+            ;;
+        --allowedTools)
+            in_allowed_tools=true
+            ;;
+        -*)
+            # unknown flag — skip its value conservatively
+            i=$(( i + 1 ))
+            in_allowed_tools=false
+            ;;
+        *)
+            # positional: either a tool name after --allowedTools (skip) or unknown; skip
+            if [[ "$in_allowed_tools" != "true" ]]; then
+                in_allowed_tools=false
+            fi
+            ;;
+    esac
+    i=$(( i + 1 ))
+done
+
+if [[ -z "$prompt" ]]; then
+    echo '{"result":"aider-claude-shim: no -p prompt provided","is_error":true}' >&2
+    exit 1
+fi
+
+# Build aider invocation
+aider_args=(aider)
+
+if [[ -f "$AIDER_CONF" ]]; then
+    aider_args+=(--config "$AIDER_CONF")
+fi
+
+# AIDER_MODEL env overrides the config file value
+if [[ -n "${AIDER_MODEL:-}" ]]; then
+    aider_args+=(--model "$AIDER_MODEL")
+fi
+
+aider_args+=(--yes --message "$prompt")
+
+# Run aider, capture output
+tmp_out=$(mktemp)
+"${aider_args[@]}" > "$tmp_out" 2>&1
+exit_code=$?
+
+aider_output=$(cat "$tmp_out")
+rm -f "$tmp_out"
+
+# Infer completion from fix_plan.md unchecked items (same heuristic ralph uses)
+remaining=0
+if [[ -f "$RALPH_DIR/fix_plan.md" ]]; then
+    remaining=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || echo 0)
+fi
+
+if [[ "$exit_code" -eq 0 && "$remaining" -eq 0 ]]; then
+    exit_signal="true"
+    status="COMPLETE"
+else
+    exit_signal="false"
+    status="IN_PROGRESS"
+fi
+
+# Synthesise files_modified from git diff since last commit
+files_modified=$(git diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
+
+is_error="false"
+if [[ "$exit_code" -ne 0 ]]; then
+    is_error="true"
+fi
+
+# Emit the flat JSON format response_analyzer.sh expects.
+# The RALPH_STATUS block inside `result` is parsed for EXIT_SIGNAL.
+result_text=$(printf '%s\n\n---RALPH_STATUS---\nSTATUS: %s\nEXIT_SIGNAL: %s\n---END_RALPH_STATUS---' \
+    "$aider_output" "$status" "$exit_signal")
+
+# Escape result_text for JSON (replace backslash, double-quote, newline, tab)
+json_result=$(printf '%s' "$result_text" \
+    | sed 's/\\/\\\\/g; s/"/\\"/g' \
+    | awk '{printf "%s\\n", $0}' \
+    | sed 's/\\n$//')
+
+printf '{"result":"%s","is_error":%s,"files_modified":%s,"exit_signal":%s}\n' \
+    "$json_result" "$is_error" "$files_modified" "$exit_signal"

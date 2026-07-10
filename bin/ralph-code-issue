@@ -1,3 +1,0 @@
-#!/bin/bash
-# ralph-code-issue — runs ralph scoped to a single GitHub issue
-exec ralph --github-issue "$@"
