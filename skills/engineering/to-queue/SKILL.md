@@ -1,7 +1,6 @@
 ---
 name: to-queue
-description: Turn ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — the dependency-aware task source the AFK loop works via `ralph --process-queue`.
-disable-model-invocation: true
+description: Use when the user wants to load ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — the dependency-aware task source the AFK loop works via `ralph --process-queue`. Reach for it after `/to-issues` when the issue graph has real blockers (any slice `Blocked by: #N`). The downstream step `/autopilot` chooses when dependencies exist.
 ---
 
 # To Queue

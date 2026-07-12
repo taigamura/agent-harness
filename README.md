@@ -509,18 +509,19 @@ Skills I use daily for code work.
 **User-invoked**
 
 - **[ask-matt](./skills/engineering/ask-matt/SKILL.md)** — Ask which skill or flow fits your situation. A router over the user-invoked skills in this repo.
+- **[autopilot](./skills/engineering/autopilot/SKILL.md)** — Fly the whole post-grilling pipeline on its own — PRD → issues → queue/fix-plan → launch ralph — accepting each step's own recommendation without stopping to ask. Pass a model alias (`/autopilot haiku`) to forward it to the ralph loop.
 - **[grill-with-docs](./skills/engineering/grill-with-docs/SKILL.md)** — Grilling session that also builds your project's domain model, sharpening terminology and updating `CONTEXT.md` and ADRs inline.
 - **[triage](./skills/engineering/triage/SKILL.md)** — Move issues through a state machine of triage roles.
 - **[improve-codebase-architecture](./skills/engineering/improve-codebase-architecture/SKILL.md)** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 - **[setup-matt-pocock-skills](./skills/engineering/setup-matt-pocock-skills/SKILL.md)** — Configure this repo's issue-tracker choice, triage label vocabulary, and domain doc layout, so `/to-prd`, `/to-issues`, `/triage`, and `/qa` know what conventions to follow here. Run once per repo before first use of the engineering flow.
-- **[to-issues](./skills/engineering/to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
-- **[to-fix-plan](./skills/engineering/to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). Use when the graph is flat.
-- **[to-queue](./skills/engineering/to-queue/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — dependency-aware task source for `ralph --process-queue`. Use when the graph has real blockers.
-- **[to-prd](./skills/engineering/to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker. No interview — just synthesizes what you've already discussed.
 - **[prototype](./skills/engineering/prototype/SKILL.md)** — Build a throwaway prototype to flesh out a design — either a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
 
 **Model-invoked**
 
+- **[to-prd](./skills/engineering/to-prd/SKILL.md)** — Turn the current conversation into a PRD and publish it to the issue tracker. No interview — just synthesizes what you've already discussed.
+- **[to-issues](./skills/engineering/to-issues/SKILL.md)** — Break any plan, spec, or PRD into independently-grabbable issues using vertical slices.
+- **[to-fix-plan](./skills/engineering/to-fix-plan/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/fix_plan.md` checklist (the `local` task source the AFK loop works top-to-bottom). Use when the graph is flat.
+- **[to-queue](./skills/engineering/to-queue/SKILL.md)** — Turn ready-for-agent issues into a frankbria ralph `.ralph/queue.json` — dependency-aware task source for `ralph --process-queue`. Use when the graph has real blockers.
 - **[diagnosing-bugs](./skills/engineering/diagnosing-bugs/SKILL.md)** — Disciplined diagnosis loop for hard bugs and performance regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test.
 - **[tdd](./skills/engineering/tdd/SKILL.md)** — Test-driven development with a red-green-refactor loop. Builds features or fixes bugs one vertical slice at a time.
 - **[domain-modeling](./skills/engineering/domain-modeling/SKILL.md)** — Actively build and sharpen a project's domain model — challenge terms against the glossary, stress-test with edge-case scenarios, and update `CONTEXT.md` and ADRs inline.
@@ -532,12 +533,12 @@ General workflow tools, not code-specific.
 
 **User-invoked**
 
-- **[grill-me](./skills/productivity/grill-me/SKILL.md)** — Get relentlessly interviewed about a plan or design until every branch of the decision tree is resolved.
 - **[handoff](./skills/productivity/handoff/SKILL.md)** — Compact the current conversation into a handoff document so another agent can continue the work.
 - **[teach](./skills/productivity/teach/SKILL.md)** — Teach the user a new skill or concept over multiple sessions, using the current directory as a stateful teaching workspace.
 - **[writing-great-skills](./skills/productivity/writing-great-skills/SKILL.md)** — Reference for writing and editing skills well: the vocabulary and principles that make a skill predictable.
 
 **Model-invoked**
 
+- **[grill-me](./skills/productivity/grill-me/SKILL.md)** — Get relentlessly interviewed about a plan or design until every branch of the decision tree is resolved. For plans that don't live in a repo.
 - **[grilling](./skills/productivity/grilling/SKILL.md)** — Interview the user relentlessly about a plan or design until every branch of the decision tree is resolved. The reusable loop behind `grill-me` and `grill-with-docs`.
 

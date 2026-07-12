@@ -1,7 +1,6 @@
 ---
 name: to-prd
-description: Turn the current conversation into a PRD and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.
-disable-model-invocation: true
+description: Use when the user wants to turn the current conversation into a PRD and publish it to the project issue tracker — asks to "write the PRD", "turn this into a PRD", or capture the resolved design as a spec. No interview, just synthesis of what's already been discussed. The first build step of the `/autopilot` pipeline.
 ---
 
 This skill takes the current conversation context and codebase understanding and produces a PRD. Do NOT interview the user — just synthesize what you already know.

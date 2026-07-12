@@ -1,7 +1,6 @@
 ---
 name: to-issues
-description: Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices.
-disable-model-invocation: true
+description: Use when the user wants to break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices — asks to "split this into issues/tickets", "break down the PRD", or create agent-ready work items. Follows `/to-prd` in the `/autopilot` pipeline.
 ---
 
 # To Issues

@@ -1,7 +1,6 @@
 ---
 name: to-fix-plan
-description: Turn ready-for-agent issues (or a PRD/plan in context) into a frankbria ralph `.ralph/fix_plan.md` checklist — the local task source the AFK loop works top-to-bottom.
-disable-model-invocation: true
+description: Use when the user wants to turn ready-for-agent issues (or a PRD/plan in context) into a frankbria ralph `.ralph/fix_plan.md` checklist — the local task source the AFK loop works top-to-bottom. Reach for it after `/to-issues` when the issue graph is flat (every slice `Blocked by: None`). The downstream step `/autopilot` chooses when there are no dependencies.
 ---
 
 # To Fix Plan
