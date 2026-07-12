@@ -93,7 +93,10 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 ralph --dry-run          # simulate without API calls — verify the task list looks right
 ralph                    # linear: run the loop off .ralph/fix_plan.md
 ralph --process-queue    # queue: dependency-aware; --halt-on-failure recommended when deps exist
+ralph --model haiku      # override the model for this run (haiku/sonnet/opus/fable or a full claude-* ID)
 ```
+
+`--model` accepts an alias (`haiku`, `sonnet`, `opus`, `fable`) or a full `claude-*` ID, and applies to every Claude invocation in the run — including queue processing (`ralph --model haiku --process-queue`). Set `CLAUDE_MODEL` in `.ralphrc` to make it the default.
 
 The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json` under `--process-queue`), runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
 
@@ -177,6 +180,11 @@ PROJECT_TYPE="typescript"
 # Claude Code CLI command
 CLAUDE_CODE_CMD="claude"
 # CLAUDE_CODE_CMD="npx @anthropic-ai/claude-code"
+
+# Model override — applied to every Claude invocation (empty = CLI default).
+# Alias (haiku/sonnet/opus/fable) or a full claude-* ID. Overridable per run
+# with --model, which also carries through --process-queue.
+#CLAUDE_MODEL="haiku"
 
 # Shell init file — source before running claude (for zsh/fish users)
 #RALPH_SHELL_INIT_FILE="~/.zshrc"

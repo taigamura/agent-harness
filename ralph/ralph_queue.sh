@@ -369,6 +369,12 @@ cmd_process() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --halt-on-failure) halt_on_failure=true; shift ;;
+            # Forward --model to each per-issue loop by exporting it: the child
+            # ralph_loop.sh applies CLAUDE_MODEL via its _env_CLAUDE_MODEL
+            # precedence machinery. Validation already happened if the flag came
+            # through `ralph --model`; accept it here for `ralph --process-queue
+            # --model NAME` ordering too.
+            --model) _require_value "$1" "${2:-}" || return 1; export CLAUDE_MODEL="$2"; shift 2 ;;
             *) log "ERROR" "Unknown 'process' option: $1"; return 1 ;;
         esac
     done

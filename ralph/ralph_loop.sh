@@ -3179,6 +3179,10 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             CLAUDE_MODEL="$_model_input"
+            # Export so the value survives `exec` into ralph_queue.sh
+            # (--process-queue) and propagates to each per-issue loop child,
+            # where the _env_CLAUDE_MODEL precedence machinery re-applies it.
+            export CLAUDE_MODEL
             shift 2
             ;;
         --reset-circuit)
