@@ -75,6 +75,7 @@ _env_VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-}"
 _env_CB_COOLDOWN_MINUTES="${CB_COOLDOWN_MINUTES:-}"
 _env_CB_AUTO_RESET="${CB_AUTO_RESET:-}"
 _env_CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-}"
+_env_RALPH_AGENT="${RALPH_AGENT:-}"
 _env_CLAUDE_AUTO_UPDATE="${CLAUDE_AUTO_UPDATE:-}"
 _env_CLAUDE_MODEL="${CLAUDE_MODEL:-}"
 _env_CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
@@ -111,6 +112,7 @@ CLAUDE_SESSION_FILE="$RALPH_DIR/.claude_session_id" # Session ID persistence fil
 CLAUDE_MIN_VERSION="2.0.76"              # Minimum required Claude CLI version
 CLAUDE_AUTO_UPDATE="${CLAUDE_AUTO_UPDATE:-true}"  # Auto-update Claude CLI at startup
 CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"     # Claude Code CLI command (default: global install)
+RALPH_AGENT="${RALPH_AGENT:-}"                   # Agent override: claude | codex | aider | /path/to/shim
 CLAUDE_MODEL="${CLAUDE_MODEL:-}"                 # Model override (e.g. claude-sonnet-4-6); empty = CLI default
 CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"               # Effort level override (e.g. high, low); empty = CLI default
 RALPH_SHELL_INIT_FILE="${RALPH_SHELL_INIT_FILE:-}" # Shell init file to source before running claude (e.g. ~/.zshrc)
@@ -325,6 +327,7 @@ load_ralphrc() {
     [[ -n "$_env_CB_COOLDOWN_MINUTES" ]] && CB_COOLDOWN_MINUTES="$_env_CB_COOLDOWN_MINUTES"
     [[ -n "$_env_CB_AUTO_RESET" ]] && CB_AUTO_RESET="$_env_CB_AUTO_RESET"
     [[ -n "$_env_CLAUDE_CODE_CMD" ]] && CLAUDE_CODE_CMD="$_env_CLAUDE_CODE_CMD"
+    [[ -n "$_env_RALPH_AGENT" ]] && RALPH_AGENT="$_env_RALPH_AGENT"
     [[ -n "$_env_CLAUDE_AUTO_UPDATE" ]] && CLAUDE_AUTO_UPDATE="$_env_CLAUDE_AUTO_UPDATE"
     [[ -n "$_env_CLAUDE_MODEL" ]] && CLAUDE_MODEL="$_env_CLAUDE_MODEL"
     [[ -n "$_env_CLAUDE_EFFORT" ]] && CLAUDE_EFFORT="$_env_CLAUDE_EFFORT"
@@ -360,6 +363,18 @@ load_ralphrc() {
     [[ -n "$_env_SYNC_EXCLUDE" ]] && SYNC_EXCLUDE="$_env_SYNC_EXCLUDE"
     [[ -n "$_env_SYNC_MAX_FILE_SIZE" ]] && SYNC_MAX_FILE_SIZE="$_env_SYNC_MAX_FILE_SIZE"
     [[ -n "$_env_SYNC_LARGE_FILE_ACTION" ]] && SYNC_LARGE_FILE_ACTION="$_env_SYNC_LARGE_FILE_ACTION"
+
+    # Resolve RALPH_AGENT → CLAUDE_CODE_CMD after .ralphrc is loaded, so --agent
+    # (and its exported RALPH_AGENT) wins over any CLAUDE_CODE_CMD set in .ralphrc.
+    if [[ -n "$RALPH_AGENT" ]]; then
+        _harness_bin="${HARNESS_DIR:-$HOME/agent-harness}/bin"
+        case "$RALPH_AGENT" in
+            claude)  CLAUDE_CODE_CMD="claude" ;;
+            codex)   CLAUDE_CODE_CMD="$_harness_bin/codex-claude-shim" ;;
+            aider)   CLAUDE_CODE_CMD="aider-claude-shim" ;;
+            /*)      CLAUDE_CODE_CMD="$RALPH_AGENT" ;;
+        esac
+    fi
 
     RALPHRC_LOADED=true
     return 0
@@ -620,6 +635,10 @@ setup_tmux_session() {
         [[ -n "${SYNC_INCLUDE:-}" ]] && ralph_cmd="$ralph_cmd --sync-include '$SYNC_INCLUDE'"
         [[ -n "${SYNC_EXCLUDE:-}" ]] && ralph_cmd="$ralph_cmd --sync-exclude '$SYNC_EXCLUDE'"
     fi
+    # Forward --agent so the monitored subprocess uses the same agent backend.
+    # The child re-sources .ralphrc which may overwrite CLAUDE_CODE_CMD, so we
+    # pass --agent explicitly rather than relying on the exported env var alone.
+    [[ -n "${RALPH_AGENT:-}" ]] && ralph_cmd="$ralph_cmd --agent '$RALPH_AGENT'"
 
     # Chain tmux kill-session after the loop command so the entire tmux
     # session is torn down when the Ralph loop exits (graceful completion,
@@ -2986,9 +3005,15 @@ Options:
     -v, --verbose           Show detailed progress updates during execution
     -l, --live              Show Claude Code output in real-time (auto-switches to JSON output)
     -t, --timeout MIN       Set Claude Code execution timeout in minutes (default: $CLAUDE_TIMEOUT_MINUTES)
-    --model NAME            Use a specific model by alias (haiku, sonnet, opus, fable) or full ID
-                            (e.g. claude-haiku-4-5-20251001). If NAME is unrecognised, shows the
-                            closest matches and exits.
+    --model NAME            Use a specific model. For Claude: alias (haiku, sonnet, opus, fable) or
+                            full claude-* ID. For other agents: pass the agent's own model ID
+                            (e.g. --agent codex --model o3). Unrecognised names warn and pass through.
+    --agent NAME            Choose the agent backend for this run. Named shortcuts:
+                              claude  — Claude Code CLI (default)
+                              codex   — OpenAI Codex CLI via codex-claude-shim
+                              aider   — aider+Ollama via aider-claude-shim
+                            Or supply an absolute path to any drop-in shim.
+                            Overrides CLAUDE_CODE_CMD in .ralphrc.
     --reset-circuit         Reset circuit breaker to CLOSED state
     --circuit-status        Show circuit breaker status and exit
     --auto-reset-circuit    Auto-reset circuit breaker on startup (bypasses cooldown)
@@ -3152,37 +3177,53 @@ while [[ $# -gt 0 ]]; do
                 _matched=true
             fi
             if [[ "$_matched" == false ]]; then
-                echo "Error: Unknown model '$_model_input'"
-                echo ""
-                echo "Known aliases (resolve to latest of that family):"
-                for _alias in "${_known_aliases[@]}"; do
-                    echo "  $_alias"
-                done
-                echo ""
-                echo "Or pass a full model ID starting with 'claude-', e.g.:"
-                echo "  claude-haiku-4-5-20251001"
-                echo "  claude-sonnet-5"
-                echo ""
-                # Simple fuzzy: show aliases that share a 3-char prefix with the input
-                _suggestions=()
-                for _alias in "${_known_aliases[@]}"; do
-                    if [[ "$_alias" == *"${_model_input:0:3}"* || "$_model_input" == *"${_alias:0:3}"* ]]; then
-                        _suggestions+=("$_alias")
-                    fi
-                done
-                if [[ ${#_suggestions[@]} -gt 0 ]]; then
-                    echo "Did you mean:"
-                    for _s in "${_suggestions[@]}"; do
-                        echo "  $_s"
-                    done
-                fi
-                exit 1
+                # Not a known Claude alias or claude-* ID. Warn and pass through —
+                # non-Claude agents (codex, aider) use different model namespaces.
+                echo "Warning: '$_model_input' is not a known Claude model alias or claude-* ID."
+                echo "If you are using a non-Claude agent (e.g. ralph --agent codex --model o3),"
+                echo "this is expected. Known Claude aliases: ${_known_aliases[*]}"
             fi
             CLAUDE_MODEL="$_model_input"
             # Export so the value survives `exec` into ralph_queue.sh
             # (--process-queue) and propagates to each per-issue loop child,
             # where the _env_CLAUDE_MODEL precedence machinery re-applies it.
             export CLAUDE_MODEL
+            shift 2
+            ;;
+        --agent)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --agent requires a name (claude, codex, aider) or an absolute path"
+                exit 1
+            fi
+            _agent_input="$2"
+            # Resolve named agents to their shim paths
+            _harness_bin="${HARNESS_DIR:-$HOME/agent-harness}/bin"
+            case "$_agent_input" in
+                claude)
+                    CLAUDE_CODE_CMD="claude"
+                    ;;
+                codex)
+                    CLAUDE_CODE_CMD="$_harness_bin/codex-claude-shim"
+                    ;;
+                aider)
+                    CLAUDE_CODE_CMD="aider-claude-shim"
+                    ;;
+                /*)
+                    # Absolute path to a custom shim
+                    CLAUDE_CODE_CMD="$_agent_input"
+                    ;;
+                *)
+                    echo "Error: Unknown agent '$_agent_input'"
+                    echo ""
+                    echo "Named agents: claude, codex, aider"
+                    echo "Or pass an absolute path to a custom shim, e.g.:"
+                    echo "  --agent /usr/local/bin/my-shim"
+                    exit 1
+                    ;;
+            esac
+            # Store for forwarding through --monitor and --process-queue
+            RALPH_AGENT="$_agent_input"
+            export CLAUDE_CODE_CMD RALPH_AGENT
             shift 2
             ;;
         --reset-circuit)

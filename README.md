@@ -93,26 +93,41 @@ Explore unfamiliar parts of the codebase with a research subagent or a throwaway
 ralph --dry-run          # simulate without API calls — verify the task list looks right
 ralph                    # linear: run the loop off .ralph/fix_plan.md
 ralph --process-queue    # queue: dependency-aware; --halt-on-failure recommended when deps exist
-ralph --model haiku      # override the model for this run (haiku/sonnet/opus/fable or a full claude-* ID)
+ralph --model haiku      # Claude model override for this run (haiku/sonnet/opus/fable or a full claude-* ID)
+ralph --agent codex      # switch to OpenAI Codex CLI for this run
+ralph --agent codex --model o3   # Codex with a specific OpenAI model ID
 ```
 
-`--model` accepts an alias (`haiku`, `sonnet`, `opus`, `fable`) or a full `claude-*` ID, and applies to every Claude invocation in the run — including queue processing (`ralph --model haiku --process-queue`). Set `CLAUDE_MODEL` in `.ralphrc` to make it the default.
+`--model` accepts a Claude alias (`haiku`, `sonnet`, `opus`, `fable`), a full `claude-*` ID, or — when combined with `--agent codex` — any OpenAI model ID (`o3`, `o4-mini`, `codex-mini`, etc.). Applies to every invocation in the run, including queue processing. Set `CLAUDE_MODEL` in `.ralphrc` to make it the default.
 
 The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json` under `--process-queue`), runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
+
+**OpenAI Codex CLI:**
+
+```bash
+ralph --agent codex               # switch to Codex for this run (no .ralphrc change needed)
+ralph --agent codex --model o3    # specify the OpenAI model
+ralph --agent codex --process-queue  # batch queue works identically
+```
+
+`codex-claude-shim` translates ralph's invocation into `codex --approval-mode full-auto --quiet`, passing the model ID through as-is. Set `CODEX_MODEL` env var as an alternative to `--model`. All queue, monitoring, and GitHub lifecycle features work unchanged.
 
 **aider+Ollama (local model, no Anthropic API):**
 
 ```bash
-# In your project's .ralphrc, set:
-#   CLAUDE_CODE_CMD="aider-claude-shim"
-#   CLAUDE_AUTO_UPDATE=false
-ralph                    # same ralph loop, now powered by aider + qwen2.5-coder
-ralph --process-queue    # batch queue works identically
-ralph --github-issue <N> # one-shot GitHub issue, same as before
-code                     # HITL: drop into an interactive aider session with harness defaults
+ralph --agent aider               # switch to aider for this run
+ralph --agent aider --process-queue
+code                              # HITL: drop into an interactive aider session with harness defaults
 ```
 
-`aider-claude-shim` acts as a drop-in replacement for the `claude` CLI. It translates ralph's invocation into `aider --model ollama/<name>`, reads the model from `config/aider.conf.yml` (override with `AIDER_MODEL` env), and synthesises a JSON response ralph's analyzer can parse. All queue, monitoring, and GitHub lifecycle features work unchanged.
+`aider-claude-shim` translates ralph's invocation into `aider --model ollama/<name>`, reads the model from `config/aider.conf.yml` (override with `AIDER_MODEL` env), and synthesises a JSON response ralph's analyzer can parse. All queue, monitoring, and GitHub lifecycle features work unchanged.
+
+To make an agent the permanent default, set `CLAUDE_CODE_CMD` in `.ralphrc`:
+
+```bash
+CLAUDE_CODE_CMD="codex-claude-shim"   # always use Codex
+CLAUDE_CODE_CMD="aider-claude-shim"   # always use aider
+```
 
 #### Interrupting and resuming the loop on another machine
 
@@ -177,13 +192,18 @@ AGENT.md (build/test commands — auto-maintained)
 PROJECT_NAME="my-project"
 PROJECT_TYPE="typescript"
 
-# Claude Code CLI command
+# Agent CLI command — which agent to invoke each loop iteration.
+# Named shortcuts (also selectable per-run with ralph --agent <name>):
+#   "claude"              (default; Claude Code)
+#   "codex-claude-shim"   (OpenAI Codex CLI; requires: npm install -g @openai/codex)
+#   "aider-claude-shim"   (aider+Ollama; requires: pip install aider-chat)
+#   "npx @anthropic-ai/claude-code"  (Claude Code via npx, no global install needed)
 CLAUDE_CODE_CMD="claude"
-# CLAUDE_CODE_CMD="npx @anthropic-ai/claude-code"
 
-# Model override — applied to every Claude invocation (empty = CLI default).
-# Alias (haiku/sonnet/opus/fable) or a full claude-* ID. Overridable per run
-# with --model, which also carries through --process-queue.
+# Model override — applied to every agent invocation (empty = agent default).
+# Claude aliases: haiku/sonnet/opus/fable, or a full claude-* ID.
+# OpenAI/Codex: o3, o4-mini, codex-mini, etc. (pass as-is when using --agent codex).
+# Overridable per run with --model, which also carries through --process-queue.
 #CLAUDE_MODEL="haiku"
 
 # Shell init file — source before running claude (for zsh/fish users)
@@ -389,8 +409,9 @@ ralph-monitor            # live monitoring dashboard
 ralph-stats              # metrics summary
 ralph-migrate            # migrate flat structure to .ralph/ subfolder
 
-# aider+Ollama shim (local model, installed by setup-machine.sh)
-aider-claude-shim        # set CLAUDE_CODE_CMD=aider-claude-shim in .ralphrc to use
+# agent shims (installed by setup-machine.sh — use with ralph --agent <name>)
+aider-claude-shim        # aider+Ollama backend (set CLAUDE_CODE_CMD or --agent aider)
+codex-claude-shim        # OpenAI Codex backend (set CLAUDE_CODE_CMD or --agent codex)
 code                     # HITL interactive aider session with harness defaults
 
 # tmux session management

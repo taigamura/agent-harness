@@ -375,6 +375,10 @@ cmd_process() {
             # through `ralph --model`; accept it here for `ralph --process-queue
             # --model NAME` ordering too.
             --model) _require_value "$1" "${2:-}" || return 1; export CLAUDE_MODEL="$2"; shift 2 ;;
+            # Forward --agent similarly: resolving to CLAUDE_CODE_CMD happens in ralph_loop.sh,
+            # but if ralph-queue is invoked directly we need to store the value so each
+            # per-issue loop child re-resolves it via its --agent parser.
+            --agent) _require_value "$1" "${2:-}" || return 1; export RALPH_AGENT="$2"; shift 2 ;;
             *) log "ERROR" "Unknown 'process' option: $1"; return 1 ;;
         esac
     done

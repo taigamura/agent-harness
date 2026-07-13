@@ -24,9 +24,9 @@ echo "Installed: $INSTALL_DIR/harness-init"
 
 echo ""
 
-echo "4/4  Installing bin tools (code, aider-claude-shim)..."
+echo "4/4  Installing bin tools (code, aider-claude-shim, codex-claude-shim)..."
 mkdir -p "$INSTALL_DIR"
-for bin in code aider-claude-shim; do
+for bin in code aider-claude-shim codex-claude-shim; do
   install -m 755 "$SCRIPT_DIR/bin/$bin" "$INSTALL_DIR/$bin"
   echo "Installed: $INSTALL_DIR/$bin"
 done

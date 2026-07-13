@@ -7,6 +7,22 @@
 # Environment variables override values in this file.
 
 # =============================================================================
+# AGENT CLI COMMAND
+# =============================================================================
+
+# Which agent CLI to invoke each loop iteration. Named shortcuts (also
+# selectable at run time with ralph --agent <name>):
+#   "claude"                  (default; Claude Code — npm install -g @anthropic-ai/claude-code)
+#   "codex-claude-shim"       (OpenAI Codex CLI; requires: npm install -g @openai/codex)
+#   "aider-claude-shim"       (aider+Ollama; requires: pip install aider-chat)
+#   "npx @anthropic-ai/claude-code"  (Claude Code via npx, no global install needed)
+#   "/path/to/custom-shim"    (any drop-in replacement; see bin/ for shim examples)
+# The CLI flag --agent <name> overrides this setting for one run without editing
+# this file. Combine with --model to pass agent-specific model IDs:
+#   ralph --agent codex --model o3
+CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"
+
+# =============================================================================
 # PROJECT IDENTIFICATION
 # =============================================================================
 

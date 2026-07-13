@@ -6,10 +6,14 @@
 PROJECT_NAME="agent-harness"
 PROJECT_TYPE="unknown"
 
-# Claude Code CLI command
-# If "claude" is not in your PATH, set to your installation:
-#   "npx @anthropic-ai/claude-code"  (uses npx, no global install needed)
-#   "/path/to/claude"                (custom path)
+# Agent CLI command — which agent to invoke each loop iteration.
+# Named shortcuts (use with ralph --agent <name> or set CLAUDE_CODE_CMD directly):
+#   "claude"                  (default; Claude Code — npm install -g @anthropic-ai/claude-code)
+#   "codex-claude-shim"       (OpenAI Codex CLI; requires: npm install -g @openai/codex)
+#   "aider-claude-shim"       (aider+Ollama; requires: pip install aider-chat)
+#   "npx @anthropic-ai/claude-code"  (Claude Code via npx, no global install needed)
+#   "/path/to/custom-shim"    (any drop-in replacement; see bin/ for shim examples)
+# CLI flag --agent <name> overrides this value for a single run.
 CLAUDE_CODE_CMD="claude"
 
 # Loop settings
