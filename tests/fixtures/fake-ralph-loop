@@ -1,0 +1,11 @@
+#!/bin/bash
+
+: "${HARNESS_DIR:?HARNESS_DIR must name the harness checkout}"
+: "${CLAUDE_MODEL:?queue processing did not forward CLAUDE_MODEL}"
+
+exec "$HARNESS_DIR/bin/codex-claude-shim" \
+    --model "$CLAUDE_MODEL" \
+    --output-format json \
+    --allowedTools Bash Read Write \
+    --append-system-prompt "queue integration context" \
+    -p "queue integration prompt"

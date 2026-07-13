@@ -3007,7 +3007,7 @@ Options:
     -t, --timeout MIN       Set Claude Code execution timeout in minutes (default: $CLAUDE_TIMEOUT_MINUTES)
     --model NAME            Use a specific model. For Claude: alias (haiku, sonnet, opus, fable) or
                             full claude-* ID. For other agents: pass the agent's own model ID
-                            (e.g. --agent codex --model o3). Unrecognised names warn and pass through.
+                            (e.g. --agent codex --model gpt-5.5). Unrecognised names warn and pass through.
     --agent NAME            Choose the agent backend for this run. Named shortcuts:
                               claude  — Claude Code CLI (default)
                               codex   — OpenAI Codex CLI via codex-claude-shim
@@ -3180,7 +3180,7 @@ while [[ $# -gt 0 ]]; do
                 # Not a known Claude alias or claude-* ID. Warn and pass through —
                 # non-Claude agents (codex, aider) use different model namespaces.
                 echo "Warning: '$_model_input' is not a known Claude model alias or claude-* ID."
-                echo "If you are using a non-Claude agent (e.g. ralph --agent codex --model o3),"
+                echo "If you are using a non-Claude agent (e.g. ralph --agent codex --model gpt-5.5),"
                 echo "this is expected. Known Claude aliases: ${_known_aliases[*]}"
             fi
             CLAUDE_MODEL="$_model_input"

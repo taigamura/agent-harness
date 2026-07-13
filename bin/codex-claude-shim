@@ -7,8 +7,9 @@
 # This shim:
 #   1. Accepts the full claude CLI argv that build_claude_command() emits
 #   2. Extracts -p <prompt> and --model <name>; passes model through to codex as-is
-#      (Codex uses OpenAI model IDs: o3, o4-mini, codex-mini, etc.)
-#   3. Runs: codex --approval-mode full-auto --quiet [--model <name>] "$prompt"
+#      (for example, gpt-5.5)
+#   3. Runs Codex non-interactively with approval policy `never` and the
+#      `workspace-write` sandbox via the `exec` subcommand
 #   4. Synthesises a JSON response in ralph's expected flat format so that
 #      response_analyzer.sh can parse it
 #   5. Handles --version so ralph's validate_claude_command() succeeds
@@ -55,9 +56,13 @@ while [[ $i -lt ${#argv[@]} ]]; do
         --allowedTools)
             in_allowed_tools=true
             ;;
+        --verbose|--include-partial-messages|--continue|--no-continue)
+            # Claude-only switches with no value.
+            in_allowed_tools=false
+            ;;
         -*)
-            # unknown flag — skip its value conservatively
-            i=$(( i + 1 ))
+            # Unknown Claude-only switch. Ignore the switch itself; treating the
+            # following argv entry as a value could accidentally consume `-p`.
             in_allowed_tools=false
             ;;
         *)
@@ -78,7 +83,7 @@ fi
 # Precedence: --model flag from argv > CODEX_MODEL env var
 effective_model="${model:-${CODEX_MODEL:-}}"
 
-codex_args=(codex --approval-mode full-auto --quiet)
+codex_args=(codex --ask-for-approval never --sandbox workspace-write exec)
 
 if [[ -n "$effective_model" ]]; then
     codex_args+=(--model "$effective_model")
@@ -97,7 +102,8 @@ rm -f "$tmp_out"
 # Infer completion from fix_plan.md unchecked items (same heuristic ralph uses)
 remaining=0
 if [[ -f "$RALPH_DIR/fix_plan.md" ]]; then
-    remaining=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || echo 0)
+    remaining=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || true)
+    remaining="${remaining:-0}"
 fi
 
 if [[ "$exit_code" -eq 0 && "$remaining" -eq 0 ]]; then
@@ -121,11 +127,13 @@ fi
 result_text=$(printf '%s\n\n---RALPH_STATUS---\nSTATUS: %s\nEXIT_SIGNAL: %s\n---END_RALPH_STATUS---' \
     "$codex_output" "$status" "$exit_signal")
 
-# Escape result_text for JSON (replace backslash, double-quote, newline, tab)
-json_result=$(printf '%s' "$result_text" \
-    | sed 's/\\/\\\\/g; s/"/\\"/g' \
-    | awk '{printf "%s\\n", $0}' \
-    | sed 's/\\n$//')
+# Let jq encode every JSON control character correctly while preserving the
+# Codex output's quotes, backslashes, whitespace, newlines, and Unicode.
+jq -cn \
+    --arg result "$result_text" \
+    --argjson is_error "$is_error" \
+    --argjson files_modified "$files_modified" \
+    --argjson exit_signal "$exit_signal" \
+    '{result: $result, is_error: $is_error, files_modified: $files_modified, exit_signal: $exit_signal}'
 
-printf '{"result":"%s","is_error":%s,"files_modified":%s,"exit_signal":%s}\n' \
-    "$json_result" "$is_error" "$files_modified" "$exit_signal"
+exit "$exit_code"

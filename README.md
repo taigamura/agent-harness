@@ -95,10 +95,10 @@ ralph                    # linear: run the loop off .ralph/fix_plan.md
 ralph --process-queue    # queue: dependency-aware; --halt-on-failure recommended when deps exist
 ralph --model haiku      # Claude model override for this run (haiku/sonnet/opus/fable or a full claude-* ID)
 ralph --agent codex      # switch to OpenAI Codex CLI for this run
-ralph --agent codex --model o3   # Codex with a specific OpenAI model ID
+ralph --agent codex --model gpt-5.5   # Codex with a specific OpenAI model ID
 ```
 
-`--model` accepts a Claude alias (`haiku`, `sonnet`, `opus`, `fable`), a full `claude-*` ID, or — when combined with `--agent codex` — any OpenAI model ID (`o3`, `o4-mini`, `codex-mini`, etc.). Applies to every invocation in the run, including queue processing. Set `CLAUDE_MODEL` in `.ralphrc` to make it the default.
+`--model` accepts a Claude alias (`haiku`, `sonnet`, `opus`, `fable`), a full `claude-*` ID, or — when combined with `--agent codex` — an OpenAI model ID such as `gpt-5.5`. Applies to every invocation in the run, including queue processing. Set `CLAUDE_MODEL` in `.ralphrc` to make it the default.
 
 The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json` under `--process-queue`), runs `/tdd` per task (Red → Green → Refactor), commits, and loops. Runs unattended overnight. Use `ralph --monitor` for a live tmux dashboard.
 
@@ -106,11 +106,11 @@ The RALPH loop picks tasks (from `.ralph/fix_plan.md` or from `.ralph/queue.json
 
 ```bash
 ralph --agent codex               # switch to Codex for this run (no .ralphrc change needed)
-ralph --agent codex --model o3    # specify the OpenAI model
+ralph --agent codex --model gpt-5.5    # specify the OpenAI model
 ralph --agent codex --process-queue  # batch queue works identically
 ```
 
-`codex-claude-shim` translates ralph's invocation into `codex --approval-mode full-auto --quiet`, passing the model ID through as-is. Set `CODEX_MODEL` env var as an alternative to `--model`. All queue, monitoring, and GitHub lifecycle features work unchanged.
+`codex-claude-shim` translates Ralph's invocation into `codex --ask-for-approval never --sandbox workspace-write exec`, passing the model ID through as-is. Set `CODEX_MODEL` as an alternative to `--model`. All queue, monitoring, and GitHub lifecycle features work unchanged.
 
 **aider+Ollama (local model, no Anthropic API):**
 
@@ -202,7 +202,7 @@ CLAUDE_CODE_CMD="claude"
 
 # Model override — applied to every agent invocation (empty = agent default).
 # Claude aliases: haiku/sonnet/opus/fable, or a full claude-* ID.
-# OpenAI/Codex: o3, o4-mini, codex-mini, etc. (pass as-is when using --agent codex).
+# OpenAI/Codex: gpt-5.5 or another Codex CLI model ID (passed through as-is).
 # Overridable per run with --model, which also carries through --process-queue.
 #CLAUDE_MODEL="haiku"
 
@@ -562,4 +562,3 @@ General workflow tools, not code-specific.
 
 - **[grill-me](./skills/productivity/grill-me/SKILL.md)** — Get relentlessly interviewed about a plan or design until every branch of the decision tree is resolved. For plans that don't live in a repo.
 - **[grilling](./skills/productivity/grilling/SKILL.md)** — Interview the user relentlessly about a plan or design until every branch of the decision tree is resolved. The reusable loop behind `grill-me` and `grill-with-docs`.
-

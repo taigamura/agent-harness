@@ -19,7 +19,7 @@
 #   "/path/to/custom-shim"    (any drop-in replacement; see bin/ for shim examples)
 # The CLI flag --agent <name> overrides this setting for one run without editing
 # this file. Combine with --model to pass agent-specific model IDs:
-#   ralph --agent codex --model o3
+#   ralph --agent codex --model gpt-5.5
 CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"
 
 # =============================================================================
