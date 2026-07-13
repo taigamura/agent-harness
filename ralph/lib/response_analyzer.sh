@@ -815,12 +815,21 @@ analyze_response() {
 
     # 7. Analyze output length trends (detect declining engagement)
     if [[ -f "$RALPH_DIR/.last_output_length" ]]; then
-        local last_length=$(cat "$RALPH_DIR/.last_output_length")
-        local length_ratio=$((output_length * 100 / last_length))
+        local last_length=""
+        last_length=$(cat "$RALPH_DIR/.last_output_length" 2>/dev/null || true)
 
-        if [[ $length_ratio -lt 50 ]]; then
-            # Output is less than 50% of previous - possible completion
-            ((confidence_score+=10))
+        # Persisted state may be absent, truncated, or left as zero by an
+        # earlier run. Only positive decimal integers support a comparison.
+        if [[ "$last_length" =~ ^[0-9]+$ ]]; then
+            last_length=$((10#$last_length))
+            if [[ $last_length -gt 0 ]]; then
+                local length_ratio=$((output_length * 100 / last_length))
+
+                if [[ $length_ratio -lt 50 ]]; then
+                    # Output is less than 50% of previous - possible completion
+                    ((confidence_score+=10))
+                fi
+            fi
         fi
     fi
     echo "$output_length" > "$RALPH_DIR/.last_output_length"

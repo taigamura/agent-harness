@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "fake jq: forced encoding failure" >&2
+exit 42

@@ -91,13 +91,23 @@ fi
 
 codex_args+=("$prompt")
 
-# Run codex, capture output
-tmp_out=$(mktemp)
+# Run Codex with its complete output in a file. Keep response text out of argv
+# and environment variables: long agent runs can exceed the platform's ARG_MAX
+# limit if their output is expanded into a later command invocation.
+tmp_out=""
+result_file=""
+cleanup() {
+    [[ -n "$tmp_out" ]] && rm -f -- "$tmp_out"
+    [[ -n "$result_file" ]] && rm -f -- "$result_file"
+}
+trap cleanup EXIT
+
+if ! tmp_out=$(mktemp); then
+    echo "codex-claude-shim: failed to create Codex output file" >&2
+    exit 1
+fi
 "${codex_args[@]}" > "$tmp_out" 2>&1
 exit_code=$?
-
-codex_output=$(cat "$tmp_out")
-rm -f "$tmp_out"
 
 # Infer completion from fix_plan.md unchecked items (same heuristic ralph uses)
 remaining=0
@@ -122,18 +132,33 @@ if [[ "$exit_code" -ne 0 ]]; then
     is_error="true"
 fi
 
-# Emit the flat JSON format response_analyzer.sh expects.
-# The RALPH_STATUS block inside `result` is parsed for EXIT_SIGNAL.
-result_text=$(printf '%s\n\n---RALPH_STATUS---\nSTATUS: %s\nEXIT_SIGNAL: %s\n---END_RALPH_STATUS---' \
-    "$codex_output" "$status" "$exit_signal")
+# Compose the result in a second file so the original Codex bytes, including
+# trailing newlines, remain intact. The RALPH_STATUS block inside `result` is
+# parsed for EXIT_SIGNAL.
+if ! result_file=$(mktemp); then
+    echo "codex-claude-shim: failed to create response file" >&2
+    exit 1
+fi
+if ! cp -- "$tmp_out" "$result_file" || \
+   ! printf '\n\n---RALPH_STATUS---\nSTATUS: %s\nEXIT_SIGNAL: %s\n---END_RALPH_STATUS---' \
+       "$status" "$exit_signal" >> "$result_file"; then
+    echo "codex-claude-shim: failed to compose Codex response" >&2
+    exit 1
+fi
 
-# Let jq encode every JSON control character correctly while preserving the
-# Codex output's quotes, backslashes, whitespace, newlines, and Unicode.
+# Let jq read the response from disk rather than argv. This preserves all text
+# without imposing the OS argument-size limit.
 jq -cn \
-    --arg result "$result_text" \
+    --rawfile result "$result_file" \
     --argjson is_error "$is_error" \
     --argjson files_modified "$files_modified" \
     --argjson exit_signal "$exit_signal" \
     '{result: $result, is_error: $is_error, files_modified: $files_modified, exit_signal: $exit_signal}'
+encode_code=$?
+
+if [[ "$encode_code" -ne 0 ]]; then
+    echo "codex-claude-shim: failed to encode Codex response as JSON" >&2
+    exit "$encode_code"
+fi
 
 exit "$exit_code"
