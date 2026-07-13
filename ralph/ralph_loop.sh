@@ -79,6 +79,7 @@ _env_RALPH_AGENT="${RALPH_AGENT:-}"
 _env_CLAUDE_AUTO_UPDATE="${CLAUDE_AUTO_UPDATE:-}"
 _env_CLAUDE_MODEL="${CLAUDE_MODEL:-}"
 _env_CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
+_env_CODEX_SANDBOX="${CODEX_SANDBOX:-}"
 _env_RALPH_SHELL_INIT_FILE="${RALPH_SHELL_INIT_FILE:-}"
 _env_ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-}"
 _env_ENABLE_BACKUP="${ENABLE_BACKUP:-}"
@@ -115,6 +116,7 @@ CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"     # Claude Code CLI command (defa
 RALPH_AGENT="${RALPH_AGENT:-}"                   # Agent override: claude | codex | aider | /path/to/shim
 CLAUDE_MODEL="${CLAUDE_MODEL:-}"                 # Model override (e.g. claude-sonnet-4-6); empty = CLI default
 CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"               # Effort level override (e.g. high, low); empty = CLI default
+CODEX_SANDBOX="${CODEX_SANDBOX:-workspace-write}" # Codex shim sandbox; danger-full-access is explicit opt-in
 RALPH_SHELL_INIT_FILE="${RALPH_SHELL_INIT_FILE:-}" # Shell init file to source before running claude (e.g. ~/.zshrc)
 DRY_RUN="${DRY_RUN:-false}"                      # Simulate loop without making actual Claude API calls
 ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-false}"  # Enable desktop notifications; set true or use --notify flag
@@ -331,6 +333,7 @@ load_ralphrc() {
     [[ -n "$_env_CLAUDE_AUTO_UPDATE" ]] && CLAUDE_AUTO_UPDATE="$_env_CLAUDE_AUTO_UPDATE"
     [[ -n "$_env_CLAUDE_MODEL" ]] && CLAUDE_MODEL="$_env_CLAUDE_MODEL"
     [[ -n "$_env_CLAUDE_EFFORT" ]] && CLAUDE_EFFORT="$_env_CLAUDE_EFFORT"
+    [[ -n "$_env_CODEX_SANDBOX" ]] && CODEX_SANDBOX="$_env_CODEX_SANDBOX"
     [[ -n "$_env_RALPH_SHELL_INIT_FILE" ]] && RALPH_SHELL_INIT_FILE="$_env_RALPH_SHELL_INIT_FILE"
     [[ -n "$_env_ENABLE_NOTIFICATIONS" ]] && ENABLE_NOTIFICATIONS="$_env_ENABLE_NOTIFICATIONS"
     [[ -n "$_env_ENABLE_BACKUP" ]] && ENABLE_BACKUP="$_env_ENABLE_BACKUP"
@@ -367,14 +370,27 @@ load_ralphrc() {
     # Resolve RALPH_AGENT → CLAUDE_CODE_CMD after .ralphrc is loaded, so --agent
     # (and its exported RALPH_AGENT) wins over any CLAUDE_CODE_CMD set in .ralphrc.
     if [[ -n "$RALPH_AGENT" ]]; then
-        _harness_bin="${HARNESS_DIR:-$HOME/agent-harness}/bin"
+        _harness_bin="${HARNESS_DIR:-}"
         case "$RALPH_AGENT" in
             claude)  CLAUDE_CODE_CMD="claude" ;;
-            codex)   CLAUDE_CODE_CMD="$_harness_bin/codex-claude-shim" ;;
+            codex)
+                if [[ -n "$_harness_bin" ]]; then
+                    CLAUDE_CODE_CMD="$_harness_bin/bin/codex-claude-shim"
+                elif command -v codex-claude-shim >/dev/null 2>&1; then
+                    CLAUDE_CODE_CMD=$(command -v codex-claude-shim)
+                elif [[ -x "$HOME/dev/agent-harness/bin/codex-claude-shim" ]]; then
+                    CLAUDE_CODE_CMD="$HOME/dev/agent-harness/bin/codex-claude-shim"
+                else
+                    CLAUDE_CODE_CMD="$HOME/agent-harness/bin/codex-claude-shim"
+                fi
+                ;;
             aider)   CLAUDE_CODE_CMD="aider-claude-shim" ;;
             /*)      CLAUDE_CODE_CMD="$RALPH_AGENT" ;;
         esac
     fi
+
+    # The Codex shim is a child process, so project config must be exported.
+    export CODEX_SANDBOX
 
     RALPHRC_LOADED=true
     return 0
@@ -3197,13 +3213,21 @@ while [[ $# -gt 0 ]]; do
             fi
             _agent_input="$2"
             # Resolve named agents to their shim paths
-            _harness_bin="${HARNESS_DIR:-$HOME/agent-harness}/bin"
+            _harness_bin="${HARNESS_DIR:-}"
             case "$_agent_input" in
                 claude)
                     CLAUDE_CODE_CMD="claude"
                     ;;
                 codex)
-                    CLAUDE_CODE_CMD="$_harness_bin/codex-claude-shim"
+                    if [[ -n "$_harness_bin" ]]; then
+                        CLAUDE_CODE_CMD="$_harness_bin/bin/codex-claude-shim"
+                    elif command -v codex-claude-shim >/dev/null 2>&1; then
+                        CLAUDE_CODE_CMD=$(command -v codex-claude-shim)
+                    elif [[ -x "$HOME/dev/agent-harness/bin/codex-claude-shim" ]]; then
+                        CLAUDE_CODE_CMD="$HOME/dev/agent-harness/bin/codex-claude-shim"
+                    else
+                        CLAUDE_CODE_CMD="$HOME/agent-harness/bin/codex-claude-shim"
+                    fi
                     ;;
                 aider)
                     CLAUDE_CODE_CMD="aider-claude-shim"

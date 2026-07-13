@@ -22,6 +22,12 @@
 #   ralph --agent codex --model gpt-5.5
 CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"
 
+# Codex CLI sandbox used by `ralph --agent codex`.
+# Keep workspace-write unless the task must launch local servers/browsers or
+# write Git metadata. danger-full-access removes Codex sandbox isolation and
+# should only be used in a trusted repository/environment.
+CODEX_SANDBOX="${CODEX_SANDBOX:-workspace-write}"
+
 # =============================================================================
 # PROJECT IDENTIFICATION
 # =============================================================================

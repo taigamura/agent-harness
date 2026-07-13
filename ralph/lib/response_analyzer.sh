@@ -60,6 +60,7 @@ detect_questions() {
 # Files above this size fall back to text mode, which the rest of the analyzer already handles.
 # Override via env var RALPH_JSONL_SAFE_MAX_BYTES.
 RALPH_JSONL_SAFE_MAX_BYTES=${RALPH_JSONL_SAFE_MAX_BYTES:-1048576}
+RALPH_ANALYSIS_SUMMARY_MAX_BYTES=${RALPH_ANALYSIS_SUMMARY_MAX_BYTES:-32768}
 
 # _file_size_bytes - Cross-platform stat helper (BSD/macOS + GNU/Linux).
 # Returns byte size of $1, or 0 if file missing.
@@ -176,7 +177,18 @@ detect_output_format() {
     local size
     size=$(_file_size_bytes "$output_file")
     if [[ "$size" -gt "$RALPH_JSONL_SAFE_MAX_BYTES" ]]; then
-        if ! grep -q '"type"[[:space:]]*:[[:space:]]*"result"' "$output_file" 2>/dev/null; then
+        # The Codex shim emits one flat JSON object whose .result can be many
+        # megabytes. Recognize its stable prefix/suffix without scanning the
+        # encoded result as one giant text line. JSONL still requires its final
+        # type=result marker.
+        local flat_shim_json=false
+        if head -c 256 "$output_file" 2>/dev/null | grep -q '"result"[[:space:]]*:' &&
+           tail -c 1024 "$output_file" 2>/dev/null | grep -q '"is_error"[[:space:]]*:' &&
+           tail -c 1024 "$output_file" 2>/dev/null | grep -q '"exit_signal"[[:space:]]*:'; then
+            flat_shim_json=true
+        fi
+        if [[ "$flat_shim_json" != "true" ]] &&
+           ! grep -q '"type"[[:space:]]*:[[:space:]]*"result"' "$output_file" 2>/dev/null; then
             echo "text"
             return
         fi
@@ -200,6 +212,7 @@ parse_json_response() {
     local output_file=$1
     local result_file="${2:-$RALPH_DIR/.json_parse_result}"
     local normalized_file=""
+    local result_text_file=""
 
     if [[ ! -f "$output_file" ]]; then
         echo "ERROR: Output file not found: $output_file" >&2
@@ -282,12 +295,16 @@ parse_json_response() {
     # The downstream EXIT_SIGNAL extraction (grep "EXIT_SIGNAL:" | cut | xargs) handles
     # both layouts uniformly because both emit one EXIT_SIGNAL: <bool> line.
     # See also the parallel check at the structured-output text-parsing fallback below.
-    if [[ "$exit_signal" == "false" && "$has_result_field" == "true" ]]; then
-        local result_text=$(jq -r '.result // ""' "$output_file" 2>/dev/null)
-        if [[ -n "$result_text" ]] && echo "$result_text" | grep -qE -- "^[[:space:]]*(---RALPH_STATUS---|RALPH_STATUS:)"; then
+    if [[ "$has_result_field" == "true" ]]; then
+        result_text_file=$(mktemp)
+        jq -rj '.result // ""' "$output_file" > "$result_text_file" 2>/dev/null || :
+    fi
+
+    if [[ "$exit_signal" == "false" && -s "$result_text_file" ]]; then
+        if grep -qE -- "^[[:space:]]*(---RALPH_STATUS---|RALPH_STATUS:)" "$result_text_file"; then
             # Extract EXIT_SIGNAL value from RALPH_STATUS block within result text
             local embedded_exit_sig
-            embedded_exit_sig=$(echo "$result_text" | grep "EXIT_SIGNAL:" | cut -d: -f2 | xargs)
+            embedded_exit_sig=$(grep "EXIT_SIGNAL:" "$result_text_file" | tail -n 1 | cut -d: -f2 | xargs)
             if [[ -n "$embedded_exit_sig" ]]; then
                 # Explicit EXIT_SIGNAL found in RALPH_STATUS block
                 explicit_exit_signal_found="true"
@@ -302,7 +319,7 @@ parse_json_response() {
             # Also check STATUS field as fallback ONLY when EXIT_SIGNAL was not specified
             # This respects explicit EXIT_SIGNAL: false which means "task complete, continue working"
             local embedded_status
-            embedded_status=$(echo "$result_text" | grep "STATUS:" | cut -d: -f2 | xargs)
+            embedded_status=$(grep "STATUS:" "$result_text_file" | tail -n 1 | cut -d: -f2 | xargs)
             if [[ "$embedded_status" == "COMPLETE" && "$explicit_exit_signal_found" != "true" ]]; then
                 # STATUS: COMPLETE without any EXIT_SIGNAL field implies completion
                 exit_signal="true"
@@ -329,7 +346,16 @@ parse_json_response() {
     fi
 
     # Summary: from flat format OR from result field (Claude CLI format)
-    local summary=$(jq -r '.result // .summary // ""' "$output_file" 2>/dev/null)
+    local summary=""
+    if [[ -s "$result_text_file" ]]; then
+        if [[ $(_file_size_bytes "$result_text_file") -le $RALPH_ANALYSIS_SUMMARY_MAX_BYTES ]]; then
+            summary=$(cat "$result_text_file")
+        else
+            summary=$(tail -c "$RALPH_ANALYSIS_SUMMARY_MAX_BYTES" "$result_text_file")
+        fi
+    else
+        summary=$(jq -r '.summary // ""' "$output_file" 2>/dev/null)
+    fi
 
     # Session ID: from Claude CLI format (sessionId) OR from metadata.session_id
     local session_id=$(jq -r '.sessionId // .metadata.session_id // ""' "$output_file" 2>/dev/null)
@@ -508,6 +534,7 @@ parse_json_response() {
     if [[ -n "$normalized_file" && -f "$normalized_file" ]]; then
         rm -f "$normalized_file"
     fi
+    [[ -n "$result_text_file" && -f "$result_text_file" ]] && rm -f "$result_text_file"
 
     return 0
 }
@@ -534,8 +561,12 @@ analyze_response() {
         return 1
     fi
 
-    local output_content=$(cat "$output_file")
-    local output_length=${#output_content}
+    # Structured responses can be tens of megabytes. Do not duplicate them in
+    # a shell variable; JSON parsing reads the file directly. Text fallback
+    # loads content only after structured parsing has been ruled out.
+    local output_content=""
+    local output_length
+    output_length=$(_file_size_bytes "$output_file")
 
     # Detect output format and try JSON parsing first
     local output_format=$(detect_output_format "$output_file")
@@ -672,6 +703,8 @@ analyze_response() {
     fi
 
     # Text parsing fallback (original logic)
+    output_content=$(cat "$output_file")
+    output_length=${#output_content}
 
     # Track whether an explicit EXIT_SIGNAL was found in RALPH_STATUS block
     # If explicit signal found, heuristics should NOT override Claude's intent

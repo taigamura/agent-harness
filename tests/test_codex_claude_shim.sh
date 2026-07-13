@@ -93,6 +93,13 @@ run_shim "$tmp_dir/out.json" "$tmp_dir/err" -p prompt --model gpt-5.5
 assert_argv "explicit model is forwarded unchanged" \
     --ask-for-approval never --sandbox workspace-write exec --model gpt-5.5 prompt
 
+CODEX_SANDBOX=danger-full-access run_shim "$tmp_dir/out.json" "$tmp_dir/err" -p prompt
+assert_argv "CODEX_SANDBOX overrides the safe default" \
+    --ask-for-approval never --sandbox danger-full-access exec prompt
+
+CODEX_SANDBOX=invalid run_shim "$tmp_dir/out.json" "$tmp_dir/err" -p prompt
+assert_eq "invalid CODEX_SANDBOX fails before Codex" "1" "$?"
+
 CODEX_MODEL=environment-model run_shim "$tmp_dir/out.json" "$tmp_dir/err" \
     --model explicit-model -p prompt
 assert_argv "explicit model overrides CODEX_MODEL" \
@@ -125,6 +132,28 @@ if jq -e '.exit_signal == false and (.result | contains("STATUS: IN_PROGRESS"))'
 else
     fail "unchecked fix plan preserves in-progress detection" "got [$(command cat "$tmp_dir/out.json")]"
 fi
+
+cat > "$tmp_dir/codex-blocked.stdout" <<'EOF'
+Implementation finished, but browser verification is unavailable.
+---RALPH_STATUS---
+STATUS: BLOCKED
+TASKS_COMPLETED_THIS_LOOP: 0
+TESTS_STATUS: FAILING
+EXIT_SIGNAL: true
+---END_RALPH_STATUS---
+EOF
+FAKE_CODEX_STDOUT_FILE="$tmp_dir/codex-blocked.stdout" \
+    RALPH_DIR="$tmp_dir/in-progress-ralph" \
+    run_shim "$tmp_dir/blocked.json" "$tmp_dir/blocked.err" -p prompt
+blocked_status=$?
+assert_eq "explicit BLOCKED response exits non-zero" "2" "$blocked_status"
+if jq -e '.is_error == true and .exit_signal == true and (.result | contains("STATUS: BLOCKED"))' \
+    "$tmp_dir/blocked.json" >/dev/null; then
+    pass "explicit BLOCKED response is preserved"
+else
+    fail "explicit BLOCKED response is preserved" "got [$(command cat "$tmp_dir/blocked.json")]"
+fi
+unset FAKE_CODEX_STDOUT_FILE
 
 if mapfile -d '' -t last_argv < "$FAKE_CODEX_ARGV" && \
    [[ " ${last_argv[*]} " != *" --approval-mode "* ]] && \
@@ -252,6 +281,25 @@ for analyzer_case in 'zero:0' 'empty:' 'malformed:not-a-number' 'positive:100'; 
             "analysis crashed for persisted value [$case_value]"
     fi
 done
+
+# Reproduce the real Codex/Ralph failure shape: a multi-megabyte flat JSON
+# object with a giant .result string and a status block at the end. Analysis
+# must stay on the JSON path, preserve the exit signal, and finish promptly.
+jq -n --rawfile result "$tmp_dir/codex-large.stdout" \
+    '{result: ($result + "\n---RALPH_STATUS---\nSTATUS: BLOCKED\nEXIT_SIGNAL: true\n---END_RALPH_STATUS---"), is_error: true, files_modified: 12, exit_signal: true}' \
+    > "$tmp_dir/analyzer-large.json"
+mkdir -p "$tmp_dir/analyzer-large"
+if timeout 10s bash -c '
+    RALPH_DIR=$1
+    source "$2/ralph/lib/response_analyzer.sh"
+    analyze_response "$3" 1 "$1/analysis.json" >/dev/null
+' _ "$tmp_dir/analyzer-large" "$ROOT" "$tmp_dir/analyzer-large.json" &&
+   jq -e '.output_format == "json" and .analysis.exit_signal == true' \
+      "$tmp_dir/analyzer-large/analysis.json" >/dev/null; then
+    pass "large flat shim JSON is analyzed promptly as JSON"
+else
+    fail "large flat shim JSON is analyzed promptly as JSON" "analysis timed out or returned the wrong signal"
+fi
 
 queue_project="$tmp_dir/project"
 printf '%s\n' '# Integration PRD' > "$queue_project/spec.md"

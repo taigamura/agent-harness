@@ -419,6 +419,18 @@ tmux list-sessions
 tmux attach -t <name>
 ```
 
+The Codex shim defaults to `CODEX_SANDBOX=workspace-write`. Tasks that must
+launch Playwright/local servers or write Git metadata can opt into
+`CODEX_SANDBOX=danger-full-access`, for example:
+
+```bash
+CODEX_SANDBOX=danger-full-access ralph --process-queue --halt-on-failure \
+  --agent codex --model gpt-5.5
+```
+
+This disables Codex sandbox isolation for the agent process. Use it only in a
+trusted repository and execution environment.
+
 ## Why These Skills Exist
 
 I built these skills as a way to fix common failure modes I see with Claude Code, Codex, and other coding agents.

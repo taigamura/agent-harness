@@ -9,7 +9,7 @@
 #   2. Extracts -p <prompt> and --model <name>; passes model through to codex as-is
 #      (for example, gpt-5.5)
 #   3. Runs Codex non-interactively with approval policy `never` and the
-#      `workspace-write` sandbox via the `exec` subcommand
+#      `workspace-write` sandbox (override with CODEX_SANDBOX) via `exec`
 #   4. Synthesises a JSON response in ralph's expected flat format so that
 #      response_analyzer.sh can parse it
 #   5. Handles --version so ralph's validate_claude_command() succeeds
@@ -83,7 +83,16 @@ fi
 # Precedence: --model flag from argv > CODEX_MODEL env var
 effective_model="${model:-${CODEX_MODEL:-}}"
 
-codex_args=(codex --ask-for-approval never --sandbox workspace-write exec)
+codex_sandbox="${CODEX_SANDBOX:-workspace-write}"
+case "$codex_sandbox" in
+    read-only|workspace-write|danger-full-access) ;;
+    *)
+        echo "codex-claude-shim: invalid CODEX_SANDBOX '$codex_sandbox'" >&2
+        exit 1
+        ;;
+esac
+
+codex_args=(codex --ask-for-approval never --sandbox "$codex_sandbox" exec)
 
 if [[ -n "$effective_model" ]]; then
     codex_args+=(--model "$effective_model")
@@ -109,26 +118,49 @@ fi
 "${codex_args[@]}" > "$tmp_out" 2>&1
 exit_code=$?
 
-# Infer completion from fix_plan.md unchecked items (same heuristic ralph uses)
+# Prefer the last complete status block emitted by Codex. The prompt itself may
+# contain an example block, so only accept blocks with one concrete status and
+# boolean exit signal. Fall back to fix_plan.md for agents that emit no block.
+explicit_status=$(
+    awk '
+        /^---RALPH_STATUS---[[:space:]]*$/ { in_block=1; status=""; exit_signal=""; next }
+        in_block && /^STATUS:[[:space:]]*/ {
+            value=$0; sub(/^STATUS:[[:space:]]*/, "", value)
+            if (value ~ /^(COMPLETE|IN_PROGRESS|BLOCKED)$/) status=value
+        }
+        in_block && /^EXIT_SIGNAL:[[:space:]]*/ {
+            value=$0; sub(/^EXIT_SIGNAL:[[:space:]]*/, "", value)
+            if (value ~ /^(true|false)$/) exit_signal=value
+        }
+        in_block && /^---END_RALPH_STATUS---[[:space:]]*$/ {
+            if (status != "" && exit_signal != "") print status "\t" exit_signal
+            in_block=0
+        }
+    ' "$tmp_out" | tail -n 1
+)
+
 remaining=0
 if [[ -f "$RALPH_DIR/fix_plan.md" ]]; then
     remaining=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || true)
     remaining="${remaining:-0}"
 fi
 
-if [[ "$exit_code" -eq 0 && "$remaining" -eq 0 ]]; then
-    exit_signal="true"
+if [[ -n "$explicit_status" ]]; then
+    status=${explicit_status%%$'\t'*}
+    exit_signal=${explicit_status#*$'\t'}
+elif [[ "$exit_code" -eq 0 && "$remaining" -eq 0 ]]; then
     status="COMPLETE"
+    exit_signal="true"
 else
-    exit_signal="false"
     status="IN_PROGRESS"
+    exit_signal="false"
 fi
 
 # Synthesise files_modified from git diff since last commit
 files_modified=$(git diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
 
 is_error="false"
-if [[ "$exit_code" -ne 0 ]]; then
+if [[ "$exit_code" -ne 0 || "$status" == "BLOCKED" ]]; then
     is_error="true"
 fi
 
@@ -159,6 +191,10 @@ encode_code=$?
 if [[ "$encode_code" -ne 0 ]]; then
     echo "codex-claude-shim: failed to encode Codex response as JSON" >&2
     exit "$encode_code"
+fi
+
+if [[ "$status" == "BLOCKED" && "$exit_code" -eq 0 ]]; then
+    exit 2
 fi
 
 exit "$exit_code"
