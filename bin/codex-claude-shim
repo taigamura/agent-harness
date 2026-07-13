@@ -1,0 +1,131 @@
+#!/bin/bash
+# codex-claude-shim — drop-in replacement for the claude CLI used by ralph_loop.sh
+#
+# Set CLAUDE_CODE_CMD=codex-claude-shim in .ralphrc (or use ralph --agent codex)
+# to route ralph through the OpenAI Codex CLI instead of Claude Code.
+#
+# This shim:
+#   1. Accepts the full claude CLI argv that build_claude_command() emits
+#   2. Extracts -p <prompt> and --model <name>; passes model through to codex as-is
+#      (Codex uses OpenAI model IDs: o3, o4-mini, codex-mini, etc.)
+#   3. Runs: codex --approval-mode full-auto --quiet [--model <name>] "$prompt"
+#   4. Synthesises a JSON response in ralph's expected flat format so that
+#      response_analyzer.sh can parse it
+#   5. Handles --version so ralph's validate_claude_command() succeeds
+
+set -uo pipefail
+
+RALPH_DIR="${RALPH_DIR:-.ralph}"
+
+# --version: ralph calls $CLAUDE_CODE_CMD --version at startup
+if [[ "${1:-}" == "--version" ]]; then
+    codex_ver=$(codex --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "0.0.0")
+    echo "codex-claude-shim 1.0.0 (codex $codex_ver)"
+    exit 0
+fi
+
+# Parse argv emitted by build_claude_command():
+#   --model <x>  --output-format json  --allowedTools t1 t2 ...  --resume <id>
+#   --append-system-prompt <text>  --effort <x>  -p <prompt>
+#
+# Only -p and --model matter; everything else is silently consumed.
+prompt=""
+model=""
+argv=("$@")
+i=0
+in_allowed_tools=false
+
+while [[ $i -lt ${#argv[@]} ]]; do
+    arg="${argv[$i]}"
+    case "$arg" in
+        -p)
+            i=$(( i + 1 ))
+            prompt="${argv[$i]:-}"
+            in_allowed_tools=false
+            ;;
+        --model)
+            i=$(( i + 1 ))
+            model="${argv[$i]:-}"
+            in_allowed_tools=false
+            ;;
+        --output-format|--resume|--append-system-prompt|--effort)
+            i=$(( i + 1 ))  # skip value
+            in_allowed_tools=false
+            ;;
+        --allowedTools)
+            in_allowed_tools=true
+            ;;
+        -*)
+            # unknown flag — skip its value conservatively
+            i=$(( i + 1 ))
+            in_allowed_tools=false
+            ;;
+        *)
+            if [[ "$in_allowed_tools" != "true" ]]; then
+                in_allowed_tools=false
+            fi
+            ;;
+    esac
+    i=$(( i + 1 ))
+done
+
+if [[ -z "$prompt" ]]; then
+    echo '{"result":"codex-claude-shim: no -p prompt provided","is_error":true}' >&2
+    exit 1
+fi
+
+# Build codex invocation
+# Precedence: --model flag from argv > CODEX_MODEL env var
+effective_model="${model:-${CODEX_MODEL:-}}"
+
+codex_args=(codex --approval-mode full-auto --quiet)
+
+if [[ -n "$effective_model" ]]; then
+    codex_args+=(--model "$effective_model")
+fi
+
+codex_args+=("$prompt")
+
+# Run codex, capture output
+tmp_out=$(mktemp)
+"${codex_args[@]}" > "$tmp_out" 2>&1
+exit_code=$?
+
+codex_output=$(cat "$tmp_out")
+rm -f "$tmp_out"
+
+# Infer completion from fix_plan.md unchecked items (same heuristic ralph uses)
+remaining=0
+if [[ -f "$RALPH_DIR/fix_plan.md" ]]; then
+    remaining=$(grep -c '^\- \[ \]' "$RALPH_DIR/fix_plan.md" 2>/dev/null || echo 0)
+fi
+
+if [[ "$exit_code" -eq 0 && "$remaining" -eq 0 ]]; then
+    exit_signal="true"
+    status="COMPLETE"
+else
+    exit_signal="false"
+    status="IN_PROGRESS"
+fi
+
+# Synthesise files_modified from git diff since last commit
+files_modified=$(git diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
+
+is_error="false"
+if [[ "$exit_code" -ne 0 ]]; then
+    is_error="true"
+fi
+
+# Emit the flat JSON format response_analyzer.sh expects.
+# The RALPH_STATUS block inside `result` is parsed for EXIT_SIGNAL.
+result_text=$(printf '%s\n\n---RALPH_STATUS---\nSTATUS: %s\nEXIT_SIGNAL: %s\n---END_RALPH_STATUS---' \
+    "$codex_output" "$status" "$exit_signal")
+
+# Escape result_text for JSON (replace backslash, double-quote, newline, tab)
+json_result=$(printf '%s' "$result_text" \
+    | sed 's/\\/\\\\/g; s/"/\\"/g' \
+    | awk '{printf "%s\\n", $0}' \
+    | sed 's/\\n$//')
+
+printf '{"result":"%s","is_error":%s,"files_modified":%s,"exit_signal":%s}\n' \
+    "$json_result" "$is_error" "$files_modified" "$exit_signal"

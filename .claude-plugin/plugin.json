@@ -2,6 +2,7 @@
   "name": "agent-harness",
   "skills": [
     "./skills/engineering/ask-matt",
+    "./skills/engineering/autopilot",
     "./skills/engineering/diagnosing-bugs",
     "./skills/engineering/grill-with-docs",
     "./skills/engineering/triage",
