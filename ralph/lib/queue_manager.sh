@@ -15,8 +15,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/date_utils.sh"
 RALPH_DIR="${RALPH_DIR:-.ralph}"
 QUEUE_FILE="${QUEUE_FILE:-$RALPH_DIR/queue.json}"
 
-# Valid per-issue status values
-QUEUE_VALID_STATUSES="pending processing completed failed skipped"
+# Valid per-issue status values.
+# 'gated' (Issue #14): the loop returned 0 but did not actually finish — it halted
+# (circuit breaker / permission denied / stagnation) or left blocking unchecked items
+# in fix_plan.md. Distinct from 'completed' (nothing finished) and 'failed' (nothing
+# errored); --halt-on-failure treats it like 'failed'.
+QUEUE_VALID_STATUSES="pending processing completed failed skipped gated"
 
 # --- internals --------------------------------------------------------------
 
@@ -212,9 +216,9 @@ mark_issue_status() {
         .queue |= map(
             if ($_QUEUE_MATCH) then
                   .status = \$st
-                | .error_message = (if \$st == \"failed\" then \$err else .error_message end)
+                | .error_message = (if (\$st == \"failed\" or \$st == \"gated\") then \$err else .error_message end)
                 | .started_at = (if \$st == \"processing\" and (.started_at == null) then \$now else .started_at end)
-                | .completed_at = (if (\$st == \"completed\" or \$st == \"failed\" or \$st == \"skipped\") then \$now else .completed_at end)
+                | .completed_at = (if (\$st == \"completed\" or \$st == \"failed\" or \$st == \"skipped\" or \$st == \"gated\") then \$now else .completed_at end)
             else . end)
     " --arg id "$id" --arg st "$new_status" --arg err "$error_message"
 }
@@ -245,7 +249,8 @@ get_queue_status() {
         processing: ([.queue[] | select(.status=="processing")] | length),
         completed:  ([.queue[] | select(.status=="completed")]  | length),
         failed:     ([.queue[] | select(.status=="failed")]     | length),
-        skipped:    ([.queue[] | select(.status=="skipped")]    | length)
+        skipped:    ([.queue[] | select(.status=="skipped")]    | length),
+        gated:      ([.queue[] | select(.status=="gated")]      | length)
     }' "$QUEUE_FILE"
 }
 

@@ -171,7 +171,7 @@ cmd_status() {
 
     local counts
     counts=$(get_queue_status)
-    echo "Queue: $(echo "$counts" | jq -r '"\(.total) total — \(.pending) pending, \(.processing) processing, \(.completed) completed, \(.failed) failed, \(.skipped) skipped"')"
+    echo "Queue: $(echo "$counts" | jq -r '"\(.total) total — \(.pending) pending, \(.processing) processing, \(.completed) completed, \(.failed) failed, \(.gated // 0) gated, \(.skipped) skipped"')"
     local repo
     repo=$(jq -r '.repository // ""' "$QUEUE_FILE")
     [[ -n "$repo" && "$repo" != "null" ]] && echo "Repository: $repo"
@@ -242,6 +242,93 @@ cmd_validate() {
 }
 
 # --- processing -------------------------------------------------------------
+
+# OPTIONAL_SECTIONS mirrors ralph_loop.sh: sections whose unchecked items don't
+# block completion (Issue #239). Read from env or .ralphrc so _count_blocking_unchecked
+# below classifies fix_plan.md the same way the loop's own exit check does.
+OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-}"
+if [[ -z "$OPTIONAL_SECTIONS" && -f ".ralphrc" ]]; then
+    # shellcheck disable=SC1091
+    OPTIONAL_SECTIONS="$(source ".ralphrc" 2>/dev/null; echo "${OPTIONAL_SECTIONS:-}")"
+fi
+OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-Optional,Future,Future Enhancements,Nice to Have}"
+
+# _count_blocking_unchecked <file> - count unchecked "- [ ]" items that BLOCK
+# completion. Local copy of the section-aware helper in ralph_loop.sh:232 (Issue
+# #239) so ralph-queue can classify a run's fix_plan.md without sourcing the whole
+# loop script. Keep in sync with that copy. Issue #14.
+_count_blocking_unchecked() {
+    local file="$1"
+    [[ ! -f "$file" ]] && { printf '0'; return 0; }
+    local raw
+    raw=$(awk -v sections="${OPTIONAL_SECTIONS:-}" '
+        BEGIN {
+            n = split(sections, arr, ",")
+            for (i = 1; i <= n; i++) {
+                s = arr[i]
+                gsub(/^[ \t]+|[ \t]+$/, "", s)
+                if (s != "") opt[tolower(s)] = 1
+            }
+        }
+        /^[[:space:]]*#+[[:space:]]+/ {
+            line = $0
+            sub(/^[[:space:]]+/, "", line)
+            level = 0
+            while (substr(line, level + 1, 1) == "#") level++
+            title = substr(line, level + 1)
+            sub(/^[[:space:]]+/, "", title)
+            sub(/[[:space:]]+$/, "", title)
+            if (optional_active && level <= optional_level) optional_active = 0
+            if (tolower(title) in opt) { optional_active = 1; optional_level = level }
+            next
+        }
+        !optional_active && /^[[:space:]]*- \[ \]/ { count++ }
+        END { print count + 0 }
+    ' "$file" 2>/dev/null | tr -d '\r\n[:space:]' | head -c 10)
+    if [[ "$raw" =~ ^[0-9]+$ ]]; then
+        printf '%d' "$raw"
+    else
+        printf '0'
+    fi
+}
+
+# _classify_run <status_json> <fix_plan> - decide a zero-exit run's true outcome.
+# Echoes "completed" or "gated" (Issue #14). Applied REGARDLESS of the loop's exit
+# code, because every halt path in ralph_loop.sh (circuit breaker, permission
+# denied, stagnation) is a bare `break` that returns 0 — the exit code alone can't
+# tell a finished task from a stalled one. Two authoritative on-disk signals:
+#   1. status.json .status == "halted"  → the loop itself halted (not a graceful exit)
+#   2. _count_blocking_unchecked > 0     → fix_plan.md still has blocking work, even
+#      if the loop's "strong completion indicators" path exited while warning about
+#      skipped items.
+# Echoes the reason (exit_reason or unchecked count) on fd 3 via a global for the caller.
+_classify_run() {
+    local status_json="$1" fix_plan="$2"
+    _CLASSIFY_REASON=""
+
+    local loop_status="" exit_reason=""
+    if [[ -f "$status_json" ]]; then
+        loop_status=$(jq -r '.status // ""' "$status_json" 2>/dev/null) || loop_status=""
+        exit_reason=$(jq -r '.exit_reason // ""' "$status_json" 2>/dev/null) || exit_reason=""
+    fi
+
+    if [[ "$loop_status" == "halted" ]]; then
+        _CLASSIFY_REASON="loop halted${exit_reason:+ ($exit_reason)}"
+        echo "gated"
+        return 0
+    fi
+
+    local unchecked
+    unchecked=$(_count_blocking_unchecked "$fix_plan")
+    if [[ "$unchecked" -gt 0 ]]; then
+        _CLASSIFY_REASON="${unchecked} unchecked blocking item(s) in fix_plan.md"
+        echo "gated"
+        return 0
+    fi
+
+    echo "completed"
+    return 0
+}
 
 # _ensure_loop_files <task_line> <spec_path> - make sure the project has the
 # PROMPT.md/fix_plan.md the loop expects, focused on the current item.
@@ -399,7 +486,7 @@ cmd_process() {
 
     mkdir -p "$(dirname "$QUEUE_LOG")"
 
-    local total processed=0 failed=0 iter=0 max_iter
+    local total processed=0 failed=0 gated=0 iter=0 max_iter
     total=$(jq -r '.queue | length' "$QUEUE_FILE")
     max_iter=$((total + 1))
 
@@ -433,7 +520,22 @@ cmd_process() {
         before_sha=$(git rev-parse HEAD 2>/dev/null) || before_sha=""
 
         if "$RALPH_LOOP_CMD" >> "$QUEUE_LOG" 2>&1; then
-            if _finalize_commit "$num" "$title" "$before_sha"; then
+            # The loop returning 0 does NOT mean the task finished — every halt path
+            # (circuit breaker / permission denied / stagnation) breaks out with exit 0.
+            # Classify the run from its on-disk signals before claiming success (Issue #14).
+            local verdict
+            verdict=$(_classify_run "$RALPH_DIR/status.json" "$RALPH_DIR/fix_plan.md")
+            if [[ "$verdict" == "gated" ]]; then
+                mark_issue_status "$id" gated "${_CLASSIFY_REASON:-not actually completed}"
+                gated=$((gated + 1))
+                log "WARN" "Gated ${id}: ${_CLASSIFY_REASON:-run did not finish the task}"
+                # Gated is treated like a failure for halting: stop rather than cascade
+                # into dependent items against a half-finished blocker.
+                if [[ "$halt_on_failure" == "true" ]]; then
+                    log "ERROR" "Halting queue (--halt-on-failure): ${id} gated"
+                    return 1
+                fi
+            elif _finalize_commit "$num" "$title" "$before_sha"; then
                 mark_issue_status "$id" completed
                 processed=$((processed + 1))
                 log "SUCCESS" "Completed ${id}"
@@ -460,9 +562,11 @@ cmd_process() {
 
     local pending
     pending=$(jq -r '[.queue[] | select(.status=="pending")] | length' "$QUEUE_FILE")
-    log "INFO" "Queue run finished: ${processed} completed, ${failed} failed, ${pending} pending (unmet dependencies or blocked)"
+    log "INFO" "Queue run finished: ${processed} completed, ${failed} failed, ${gated} gated, ${pending} pending (unmet dependencies or blocked)"
 
-    if [[ "$failed" -gt 0 ]]; then
+    # Gated items (halted / unfinished) count as failure for the exit code, so a
+    # queue that stalled without erroring still reports non-zero (Issue #14).
+    if [[ "$failed" -gt 0 || "$gated" -gt 0 ]]; then
         return 1
     fi
     return 0
