@@ -124,7 +124,7 @@ ENABLE_BACKUP="${ENABLE_BACKUP:-false}"               # Enable automatic git bac
 LIVE_SHOW_TOOL_ARGS="${LIVE_SHOW_TOOL_ARGS:-false}"  # Show tool arguments in live streaming output (file paths, commands, patterns)
 # Issue #239: comma-separated fix_plan.md section titles whose unchecked items do NOT block the
 # plan-complete exit (case-insensitive). Lets users mark truly optional/future work as non-blocking.
-OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-Optional,Future,Future Enhancements,Nice to Have}"
+OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-Optional,Future,Future Enhancements,Nice to Have,Next up,Not started,Learnings,Notes}"
 # Issue #73: GitHub issue lifecycle management (all opt-in; require --github-issue)
 GITHUB_ISSUE="${GITHUB_ISSUE:-}"                       # Issue reference: N, #N, owner/repo#N, or URL
 COMMENT_PROGRESS="${COMMENT_PROGRESS:-false}"          # Post progress comments during development
@@ -252,7 +252,18 @@ _count_blocking_unchecked() {
             sub(/^[[:space:]]+/, "", title)
             sub(/[[:space:]]+$/, "", title)
             if (optional_active && level <= optional_level) optional_active = 0
-            if (tolower(title) in opt) { optional_active = 1; optional_level = level }
+            lt = tolower(title)
+            for (k in opt) {
+                kl = length(k)
+                if (substr(lt, 1, kl) == k) {
+                    # prefix match with a word boundary: an optional section name
+                    # at the start of the title makes the whole heading optional,
+                    # so "Next up (not started)" matches "Next up" but "Notesworthy"
+                    # does not match "Notes".
+                    nc = substr(lt, kl + 1, 1)
+                    if (nc == "" || nc !~ /[a-z0-9]/) { optional_active = 1; optional_level = level; break }
+                }
+            }
             next
         }
         # Unchecked checkbox outside any optional section blocks exit

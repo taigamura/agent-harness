@@ -251,7 +251,7 @@ if [[ -z "$OPTIONAL_SECTIONS" && -f ".ralphrc" ]]; then
     # shellcheck disable=SC1091
     OPTIONAL_SECTIONS="$(source ".ralphrc" 2>/dev/null; echo "${OPTIONAL_SECTIONS:-}")"
 fi
-OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-Optional,Future,Future Enhancements,Nice to Have}"
+OPTIONAL_SECTIONS="${OPTIONAL_SECTIONS:-Optional,Future,Future Enhancements,Nice to Have,Next up,Not started,Learnings,Notes}"
 
 # _count_blocking_unchecked <file> - count unchecked "- [ ]" items that BLOCK
 # completion. Local copy of the section-aware helper in ralph_loop.sh:232 (Issue
@@ -279,7 +279,18 @@ _count_blocking_unchecked() {
             sub(/^[[:space:]]+/, "", title)
             sub(/[[:space:]]+$/, "", title)
             if (optional_active && level <= optional_level) optional_active = 0
-            if (tolower(title) in opt) { optional_active = 1; optional_level = level }
+            lt = tolower(title)
+            for (k in opt) {
+                kl = length(k)
+                if (substr(lt, 1, kl) == k) {
+                    # prefix match with a word boundary: an optional section name
+                    # at the start of the title makes the whole heading optional,
+                    # so "Next up (not started)" matches "Next up" but "Notesworthy"
+                    # does not match "Notes".
+                    nc = substr(lt, kl + 1, 1)
+                    if (nc == "" || nc !~ /[a-z0-9]/) { optional_active = 1; optional_level = level; break }
+                }
+            }
             next
         }
         !optional_active && /^[[:space:]]*- \[ \]/ { count++ }
